@@ -1356,6 +1356,10 @@ button {
     pointer-events: none;
 }
 
+.toast[hidden] {
+    display: none;
+}
+
 .toast.show {
     transform: translateX(-50%) translateY(0);
     opacity: 1;

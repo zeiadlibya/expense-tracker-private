@@ -344,6 +344,7 @@
 
         // Update connection status
         updateConnectionStatus();
+        hideToast();
 
         // Bind events
         bindEvents();
@@ -1121,6 +1122,7 @@
         }
 
         dom.toastMessage.textContent = message;
+        dom.toast.hidden = false;
         dom.toast.classList.remove('show', 'hiding');
         dom.toast.setAttribute('aria-hidden', 'false');
         dom.toast.offsetHeight;
@@ -1144,7 +1146,10 @@
         }
 
         setTimeout(() => {
-            if (dom.toast) dom.toast.classList.remove('hiding');
+            if (dom.toast) {
+                dom.toast.classList.remove('hiding');
+                dom.toast.hidden = true;
+            }
         }, 350);
     }
 
