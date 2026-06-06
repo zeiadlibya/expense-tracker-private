@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>محفظتي - إدارة المصروفات والدخل</title>
+    <meta name="description" content="تطبيق شخصي لإدارة المصروفات والدخل المالي مع تحليلات فورية">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Splash / Loading -->
+    <div id="splash-screen" class="splash-screen">
+        <div class="splash-content">
+            <div class="splash-icon">
+                <svg viewBox="0 0 80 80" fill="none">
+                    <defs>
+                        <linearGradient id="splashGrad" x1="0" y1="0" x2="80" y2="80" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#a78bfa"/>
+                            <stop offset="1" stop-color="#6d28d9"/>
+                        </linearGradient>
+                    </defs>
+                    <rect width="80" height="80" rx="20" fill="url(#splashGrad)"/>
+                    <path d="M40 20v40M28 35l12-15 12 15M25 50h30" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <h1 class="splash-title">محفظتي</h1>
+            <p class="splash-subtitle">إدارة ذكية لأموالك</p>
+            <div class="splash-loader">
+                <div class="splash-loader-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" class="app hidden">
+        <!-- Header -->
+        <header id="app-header" class="app-header">
+            <div class="header-content">
+                <div class="header-right">
+                    <div class="header-logo">
+                        <svg viewBox="0 0 32 32" fill="none" width="32" height="32">
+                            <defs>
+                                <linearGradient id="logoGrad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+                                    <stop stop-color="#a78bfa"/>
+                                    <stop offset="1" stop-color="#6d28d9"/>
+                                </linearGradient>
+                            </defs>
+                            <rect width="32" height="32" rx="8" fill="url(#logoGrad)"/>
+                            <path d="M16 8v16M11 14l5-6 5 6M10 20h12" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="header-title" id="page-title">محفظتي</h1>
+                        <p class="header-date" id="header-date"></p>
+                    </div>
+                </div>
+                <button class="header-settings-btn" id="settings-btn" aria-label="الإعدادات">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Pages Container -->
+        <main class="pages-container" id="pages-container">
+
+            <!-- ==================== HOME PAGE ==================== -->
+            <section id="page-home" class="page active">
+                <div class="page-scroll">
+                    <!-- Total Balance Card -->
+                    <div class="balance-card" id="balance-card">
+                        <div class="balance-card-bg"></div>
+                        <div class="balance-card-content">
+                            <p class="balance-label">الرصيد الإجمالي</p>
+                            <h2 class="balance-amount" id="total-balance">0.00</h2>
+                            <div class="balance-row">
+                                <div class="balance-item income-item">
+                                    <div class="balance-item-icon income-icon">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="17 11 12 6 7 11"/><line x1="12" y1="18" x2="12" y2="6"/></svg>
+                                    </div>
+                                    <div>
+                                        <span class="balance-item-label">الدخل</span>
+                                        <span class="balance-item-value" id="total-income">0.00</span>
+                                    </div>
+                                </div>
+                                <div class="balance-divider"></div>
+                                <div class="balance-item expense-item">
+                                    <div class="balance-item-icon expense-icon">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 13 12 18 17 13"/><line x1="12" y1="6" x2="12" y2="18"/></svg>
+                                    </div>
+                                    <div>
+                                        <span class="balance-item-label">المصروفات</span>
+                                        <span class="balance-item-value" id="total-expenses">0.00</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Income Split Cards -->
+                    <div class="section-title">
+                        <h3>توزيع الدخل</h3>
+                    </div>
+                    <div class="split-cards">
+                        <div class="split-card savings-card">
+                            <div class="split-card-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16"/><path d="M3 21h18"/><path d="M9 7h6"/><path d="M9 11h6"/><path d="M9 15h4"/></svg>
+                            </div>
+                            <span class="split-card-label">التوفير</span>
+                            <span class="split-card-value" id="savings-amount">0.00</span>
+                        </div>
+                        <div class="split-card expenses-split-card">
+                            <div class="split-card-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                            </div>
+                            <span class="split-card-label">المصروفات</span>
+                            <span class="split-card-value" id="expenses-split-amount">0.00</span>
+                        </div>
+                        <div class="split-card emergency-card">
+                            <div class="split-card-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            </div>
+                            <span class="split-card-label">الطوارئ</span>
+                            <span class="split-card-value" id="emergency-amount">0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Payment Method Totals -->
+                    <div class="section-title">
+                        <h3>المصروفات حسب طريقة الدفع</h3>
+                    </div>
+                    <div class="payment-method-cards">
+                        <div class="payment-card cash-payment-card">
+                            <div class="payment-card-header">
+                                <div class="payment-card-icon cash-icon-bg">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h.01M18 12h.01"/></svg>
+                                </div>
+                                <span class="payment-card-label">كاش</span>
+                            </div>
+                            <span class="payment-card-value" id="cash-total">0.00</span>
+                        </div>
+                        <div class="payment-card card-payment-card">
+                            <div class="payment-card-header">
+                                <div class="payment-card-icon card-icon-bg">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                                </div>
+                                <span class="payment-card-label">بطاقة</span>
+                            </div>
+                            <span class="payment-card-value" id="card-total">0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Recent Transactions -->
+                    <div class="section-title">
+                        <h3>آخر المعاملات</h3>
+                        <button class="see-all-btn" id="see-all-transactions">عرض الكل</button>
+                    </div>
+                    <div class="transactions-list" id="recent-transactions">
+                        <div class="empty-state" id="empty-home">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+                            </svg>
+                            <p>لا توجد معاملات بعد</p>
+                            <span>ابدأ بإضافة دخل أو مصروف</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== ADD EXPENSE PAGE ==================== -->
+            <section id="page-expense" class="page">
+                <div class="page-scroll">
+                    <div class="form-card">
+                        <div class="form-header">
+                            <div class="form-header-icon expense-form-icon">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 13 12 18 17 13"/><line x1="12" y1="6" x2="12" y2="18"/></svg>
+                            </div>
+                            <h2>إضافة مصروف</h2>
+                            <p>سجل مصروفاتك بسهولة وسرعة</p>
+                        </div>
+
+                        <!-- Amount Input -->
+                        <div class="form-group">
+                            <label class="form-label" for="expense-amount">المبلغ</label>
+                            <div class="amount-input-wrapper">
+                                <input type="number" id="expense-amount" class="amount-input" placeholder="0.00" inputmode="decimal" step="0.01" min="0">
+                                <span class="currency-badge">د.ل</span>
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="form-group">
+                            <label class="form-label" for="expense-desc">الوصف (اختياري)</label>
+                            <input type="text" id="expense-desc" class="text-input" placeholder="مثال: غداء، بنزين...">
+                        </div>
+
+                        <!-- Category Labels -->
+                        <div class="form-group">
+                            <label class="form-label">نوع المصروف</label>
+                            <div class="label-grid" id="category-labels">
+                                <button class="label-btn active" data-category="food">
+                                    <span class="label-emoji">🍽️</span>
+                                    <span>غذائية</span>
+                                </button>
+                                <button class="label-btn" data-category="smoking">
+                                    <span class="label-emoji">🚬</span>
+                                    <span>دخان</span>
+                                </button>
+                                <button class="label-btn" data-category="entertainment">
+                                    <span class="label-emoji">🎮</span>
+                                    <span>ترفيه</span>
+                                </button>
+                                <button class="label-btn" data-category="personal">
+                                    <span class="label-emoji">💆</span>
+                                    <span>عناية شخصية</span>
+                                </button>
+                                <button class="label-btn" data-category="family">
+                                    <span class="label-emoji">👨‍👩‍👧‍👦</span>
+                                    <span>التزامات اسرية</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Payment Method -->
+                        <div class="form-group">
+                            <label class="form-label">طريقة الدفع</label>
+                            <div class="payment-toggle" id="payment-toggle">
+                                <button class="payment-btn active" data-method="cash">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+                                    <span>كاش</span>
+                                </button>
+                                <button class="payment-btn" data-method="card">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                                    <span>بطاقة</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Date -->
+                        <div class="form-group">
+                            <label class="form-label" for="expense-date">التاريخ</label>
+                            <input type="date" id="expense-date" class="text-input date-input">
+                        </div>
+
+                        <!-- Submit -->
+                        <button class="submit-btn expense-submit" id="add-expense-btn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            <span>إضافة المصروف</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== ADD INCOME PAGE ==================== -->
+            <section id="page-income" class="page">
+                <div class="page-scroll">
+                    <div class="form-card">
+                        <div class="form-header">
+                            <div class="form-header-icon income-form-icon">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 11 12 6 7 11"/><line x1="12" y1="18" x2="12" y2="6"/></svg>
+                            </div>
+                            <h2>إضافة دخل</h2>
+                            <p>سجل دخلك وحدد نسب التوزيع</p>
+                        </div>
+
+                        <!-- Amount Input -->
+                        <div class="form-group">
+                            <label class="form-label" for="income-amount">المبلغ الإجمالي</label>
+                            <div class="amount-input-wrapper">
+                                <input type="number" id="income-amount" class="amount-input" placeholder="0.00" inputmode="decimal" step="0.01" min="0">
+                                <span class="currency-badge">د.ل</span>
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="form-group">
+                            <label class="form-label" for="income-desc">المصدر (اختياري)</label>
+                            <input type="text" id="income-desc" class="text-input" placeholder="مثال: راتب، عمل حر...">
+                        </div>
+
+                        <!-- Split Percentages -->
+                        <div class="form-group">
+                            <label class="form-label">توزيع الدخل</label>
+                            <div class="split-controls">
+                                <div class="split-control">
+                                    <div class="split-control-header">
+                                        <span class="split-dot savings-dot"></span>
+                                        <span>التوفير</span>
+                                        <span class="split-percent" id="savings-percent">20%</span>
+                                    </div>
+                                    <input type="range" id="savings-slider" class="split-slider savings-slider" min="0" max="100" value="20">
+                                    <span class="split-preview" id="savings-preview">0.00 د.ل</span>
+                                </div>
+                                <div class="split-control">
+                                    <div class="split-control-header">
+                                        <span class="split-dot expenses-dot"></span>
+                                        <span>المصروفات</span>
+                                        <span class="split-percent" id="expenses-percent">60%</span>
+                                    </div>
+                                    <input type="range" id="expenses-slider" class="split-slider expenses-slider" min="0" max="100" value="60">
+                                    <span class="split-preview" id="expenses-preview">0.00 د.ل</span>
+                                </div>
+                                <div class="split-control">
+                                    <div class="split-control-header">
+                                        <span class="split-dot emergency-dot"></span>
+                                        <span>الطوارئ</span>
+                                        <span class="split-percent" id="emergency-percent">20%</span>
+                                    </div>
+                                    <input type="range" id="emergency-slider" class="split-slider emergency-slider" min="0" max="100" value="20">
+                                    <span class="split-preview" id="emergency-preview">0.00 د.ل</span>
+                                </div>
+                                <div class="split-total-bar">
+                                    <div class="split-total-fill" id="split-total-fill"></div>
+                                </div>
+                                <p class="split-total-text" id="split-total-text">المجموع: 100%</p>
+                            </div>
+                        </div>
+
+                        <!-- Date -->
+                        <div class="form-group">
+                            <label class="form-label" for="income-date">التاريخ</label>
+                            <input type="date" id="income-date" class="text-input date-input">
+                        </div>
+
+                        <!-- Submit -->
+                        <button class="submit-btn income-submit" id="add-income-btn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            <span>إضافة الدخل</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== ANALYTICS PAGE ==================== -->
+            <section id="page-analytics" class="page">
+                <div class="page-scroll">
+                    <!-- Month Selector -->
+                    <div class="month-selector">
+                        <button class="month-nav-btn" id="prev-month">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                        </button>
+                        <span class="month-label" id="analytics-month">يونيو 2026</span>
+                        <button class="month-nav-btn" id="next-month">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                        </button>
+                    </div>
+
+                    <!-- Summary Cards -->
+                    <div class="analytics-summary">
+                        <div class="analytics-card a-income-card">
+                            <span class="analytics-card-label">إجمالي الدخل</span>
+                            <span class="analytics-card-value" id="a-total-income">0.00</span>
+                        </div>
+                        <div class="analytics-card a-expense-card">
+                            <span class="analytics-card-label">إجمالي المصروفات</span>
+                            <span class="analytics-card-value" id="a-total-expenses">0.00</span>
+                        </div>
+                        <div class="analytics-card a-balance-card">
+                            <span class="analytics-card-label">الرصيد</span>
+                            <span class="analytics-card-value" id="a-balance">0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Expense by Category Chart -->
+                    <div class="chart-card">
+                        <h3 class="chart-title">المصروفات حسب النوع</h3>
+                        <div class="chart-container">
+                            <canvas id="category-chart"></canvas>
+                        </div>
+                        <div class="chart-legend" id="category-legend"></div>
+                    </div>
+
+                    <!-- Payment Method Chart -->
+                    <div class="chart-card">
+                        <h3 class="chart-title">كاش مقابل بطاقة</h3>
+                        <div class="chart-container chart-container-small">
+                            <canvas id="payment-chart"></canvas>
+                        </div>
+                        <div class="payment-comparison">
+                            <div class="comparison-item">
+                                <span class="comparison-dot cash-dot"></span>
+                                <span class="comparison-label">كاش</span>
+                                <span class="comparison-value" id="a-cash-total">0.00</span>
+                            </div>
+                            <div class="comparison-item">
+                                <span class="comparison-dot card-dot"></span>
+                                <span class="comparison-label">بطاقة</span>
+                                <span class="comparison-value" id="a-card-total">0.00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Income Distribution Chart -->
+                    <div class="chart-card">
+                        <h3 class="chart-title">توزيع الدخل</h3>
+                        <div class="chart-container chart-container-small">
+                            <canvas id="income-chart"></canvas>
+                        </div>
+                        <div class="income-dist-legend">
+                            <div class="dist-item">
+                                <span class="dist-dot savings-bg"></span>
+                                <span>توفير</span>
+                                <span class="dist-value" id="a-savings">0.00</span>
+                            </div>
+                            <div class="dist-item">
+                                <span class="dist-dot expenses-bg"></span>
+                                <span>مصروفات</span>
+                                <span class="dist-value" id="a-expenses-split">0.00</span>
+                            </div>
+                            <div class="dist-item">
+                                <span class="dist-dot emergency-bg"></span>
+                                <span>طوارئ</span>
+                                <span class="dist-value" id="a-emergency">0.00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Daily Spending Chart -->
+                    <div class="chart-card">
+                        <h3 class="chart-title">الإنفاق اليومي</h3>
+                        <div class="chart-container chart-container-bar">
+                            <canvas id="daily-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav" id="bottom-nav">
+            <button class="nav-btn active" data-page="home" id="nav-home">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span>الرئيسية</span>
+            </button>
+            <button class="nav-btn" data-page="expense" id="nav-expense">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 13 12 18 17 13"/><line x1="12" y1="6" x2="12" y2="18"/></svg>
+                <span>مصروف</span>
+            </button>
+            <button class="nav-btn" data-page="income" id="nav-income">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 11 12 6 7 11"/><line x1="12" y1="18" x2="12" y2="6"/></svg>
+                <span>دخل</span>
+            </button>
+            <button class="nav-btn" data-page="analytics" id="nav-analytics">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                <span>تحليلات</span>
+            </button>
+        </nav>
+
+        <!-- Toast Notification -->
+        <div class="toast" id="toast">
+            <div class="toast-content">
+                <svg class="toast-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <span class="toast-message" id="toast-message">تمت الإضافة بنجاح</span>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div class="modal-overlay" id="settings-modal">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3>الإعدادات</h3>
+                    <button class="modal-close" id="close-settings">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="setting-item">
+                        <span>العملة</span>
+                        <select id="currency-select" class="setting-select">
+                            <option value="د.ل">دينار ليبي (د.ل)</option>
+                            <option value="ر.س">ريال سعودي (ر.س)</option>
+                            <option value="د.إ">درهم إماراتي (د.إ)</option>
+                            <option value="$">دولار ($)</option>
+                            <option value="€">يورو (€)</option>
+                        </select>
+                    </div>
+                    <div class="setting-cloud">
+                        <label for="sheet-url-input">https://script.google.com/macros/s/AKfycbwSao1XI4r397vrwZXgLBnJeQZMe-CwT3d_PXijUM3aonDfpJNwLBTi9kVuNyIXIqFi/exec</label>
+                        <input id="sheet-url-input" class="setting-input" type="url" placeholder="https://script.google.com/macros/s/.../exec">
+                        <div class="connection-status offline" id="connection-status">https://script.google.com/macros/s/AKfycbwSao1XI4r397vrwZXgLBnJeQZMe-CwT3d_PXijUM3aonDfpJNwLBTi9kVuNyIXIqFi/exec</div>
+                        <div class="setting-actions">
+                            <button class="modal-btn save-cloud-btn" id="save-sheet-url-btn">حفظ الرابط</button>
+                            <button class="modal-btn sync-cloud-btn" id="cloud-sync-btn">تحميل من Google Sheets</button>
+                        </div>
+                    </div>
+                    <div class="setting-item danger-setting">
+                        <span>حذف جميع البيانات</span>
+                        <button class="danger-btn" id="clear-data-btn">مسح الكل</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div class="modal-overlay" id="delete-modal">
+            <div class="modal-card modal-card-small">
+                <div class="modal-header">
+                    <h3>تأكيد الحذف</h3>
+                </div>
+                <div class="modal-body">
+                    <p class="delete-confirm-text">هل أنت متأكد من حذف هذه المعاملة؟</p>
+                    <div class="modal-actions">
+                        <button class="modal-btn cancel-btn" id="cancel-delete">إلغاء</button>
+                        <button class="modal-btn confirm-delete-btn" id="confirm-delete">حذف</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
