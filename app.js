@@ -19,6 +19,7 @@
         CURRENCY: 'wallet_currency',
         SHEET_URL: 'wallet_sheet_url',
     };
+    const APP_PIN = '2580';
 
     const CATEGORIES = {
         food: { label: 'غذائية', emoji: '🍽️', color: '#f97316' },
@@ -281,6 +282,11 @@
 
     const dom = {
         splash: $('#splash-screen'),
+        lockScreen: $('#lock-screen'),
+        lockCard: $('.lock-card'),
+        lockForm: $('#lock-form'),
+        lockPin: $('#lock-pin'),
+        lockError: $('#lock-error'),
         app: $('#app'),
         pageTitle: $('#page-title'),
         headerDate: $('#header-date'),
@@ -390,21 +396,67 @@
 
         // Bind events
         bindEvents();
+        bindLockEvents();
 
         // Update all views
         updateHome();
         updateSplitPreviews();
 
-        // Show app after splash
+        // Show lock screen after splash
         setTimeout(() => {
             dom.splash.classList.add('hidden');
-            dom.app.classList.remove('hidden');
-
-            // مزامنة من السحابة عند بدء التشغيل
-            if (isOnlineMode()) {
-                syncFromCloud();
-            }
+            showLockScreen();
         }, 1500);
+    }
+
+    function bindLockEvents() {
+        if (!dom.lockForm || !dom.lockPin) return;
+
+        dom.lockPin.addEventListener('input', () => {
+            dom.lockPin.value = dom.lockPin.value.replace(/\D/g, '').slice(0, 4);
+            dom.lockError.textContent = '';
+        });
+
+        dom.lockForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+
+            if (dom.lockPin.value === APP_PIN) {
+                unlockApp();
+                return;
+            }
+
+            dom.lockPin.value = '';
+            dom.lockError.textContent = 'كلمة السر غير صحيحة';
+            shakeElement(dom.lockCard || dom.lockPin);
+            dom.lockPin.focus();
+        });
+    }
+
+    function showLockScreen() {
+        if (!dom.lockScreen || !dom.lockPin) {
+            unlockApp();
+            return;
+        }
+
+        dom.lockScreen.classList.remove('hidden');
+        dom.lockScreen.hidden = false;
+        dom.lockPin.value = '';
+        dom.lockError.textContent = '';
+        setTimeout(() => dom.lockPin.focus(), 120);
+    }
+
+    function unlockApp() {
+        if (dom.lockScreen) {
+            dom.lockScreen.classList.add('hidden');
+            dom.lockScreen.hidden = true;
+        }
+
+        dom.app.classList.remove('hidden');
+
+        // مزامنة من السحابة عند بدء التشغيل بعد فتح القفل
+        if (isOnlineMode()) {
+            syncFromCloud();
+        }
     }
 
     function updateConnectionStatus() {

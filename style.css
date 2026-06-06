@@ -219,6 +219,90 @@ button {
     animation: splashLoad 1.2s ease-in-out infinite;
 }
 
+/* ============================================
+   LOCK SCREEN
+   ============================================ */
+.lock-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-lg);
+    background:
+        radial-gradient(circle at 50% 12%, rgba(29, 124, 255, 0.18), transparent 34%),
+        var(--bg-primary);
+}
+
+.lock-card {
+    width: min(100%, 360px);
+    text-align: center;
+    background: rgba(26, 26, 46, 0.72);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    padding: var(--space-xl) var(--space-lg);
+    box-shadow: var(--shadow-lg);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+}
+
+.lock-card h2 {
+    margin: 0 0 var(--space-xs);
+    font-size: 1.35rem;
+    font-weight: 800;
+}
+
+.lock-card p {
+    margin: 0 0 var(--space-lg);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.lock-form {
+    display: grid;
+    gap: var(--space-md);
+}
+
+.lock-input {
+    width: 100%;
+    height: 58px;
+    background: var(--bg-input);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    color: var(--text-primary);
+    text-align: center;
+    direction: ltr;
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: 0.35em;
+    padding-inline-start: 0.35em;
+}
+
+.lock-input:focus {
+    border-color: var(--accent-purple);
+    box-shadow: 0 0 0 4px var(--accent-purple-glow);
+}
+
+.lock-submit {
+    width: 100%;
+    min-height: 50px;
+    border-radius: var(--radius-lg);
+    color: #fff;
+    background: linear-gradient(135deg, #1f83ff, #6d28d9);
+    font-weight: 800;
+    box-shadow: 0 8px 24px rgba(109, 40, 217, 0.25);
+}
+
+.lock-error {
+    min-height: 22px;
+    margin-top: var(--space-md);
+    color: var(--expense-red);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
 @keyframes splashFadeIn {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
