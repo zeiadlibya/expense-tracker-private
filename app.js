@@ -118,25 +118,67 @@
     }
 
     function getCloudData() {
+        return getCloudDataJsonp()
+            .catch(() => getCloudDataFrame());
+    }
+
+    function getCloudDataJsonp() {
         return new Promise((resolve, reject) => {
             const callbackName = `walletCloudCallback_${Date.now()}`;
             const script = document.createElement('script');
             const separator = appsScriptUrl.includes('?') ? '&' : '?';
+            const timeout = setTimeout(() => {
+                cleanup();
+                reject(new Error('Google Sheets JSONP timeout'));
+            }, 7000);
 
-            window[callbackName] = (data) => {
+            function cleanup() {
+                clearTimeout(timeout);
                 delete window[callbackName];
                 script.remove();
+            }
+
+            window[callbackName] = (data) => {
+                cleanup();
                 resolve(data);
             };
 
             script.onerror = () => {
-                delete window[callbackName];
-                script.remove();
-                reject(new Error('Google Sheets connection failed'));
+                cleanup();
+                reject(new Error('Google Sheets JSONP failed'));
             };
 
             script.src = `${appsScriptUrl}${separator}action=getAll&callback=${callbackName}`;
             document.body.appendChild(script);
+        });
+    }
+
+    function getCloudDataFrame() {
+        return new Promise((resolve, reject) => {
+            const iframe = document.createElement('iframe');
+            const separator = appsScriptUrl.includes('?') ? '&' : '?';
+            const timeout = setTimeout(() => {
+                cleanup();
+                reject(new Error('Google Sheets frame timeout'));
+            }, 10000);
+
+            function cleanup() {
+                clearTimeout(timeout);
+                window.removeEventListener('message', handleMessage);
+                iframe.remove();
+            }
+
+            function handleMessage(event) {
+                const data = event.data;
+                if (!data || data.source !== 'expense-tracker-google-sheets') return;
+                cleanup();
+                resolve(data.payload);
+            }
+
+            window.addEventListener('message', handleMessage);
+            iframe.hidden = true;
+            iframe.src = `${appsScriptUrl}${separator}action=getAll&mode=frame&t=${Date.now()}`;
+            document.body.appendChild(iframe);
         });
     }
 

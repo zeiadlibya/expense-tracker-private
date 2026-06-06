@@ -3,13 +3,32 @@ const SPLITS_SHEET = "splits";
 
 function doGet(event) {
   const params = event.parameter || {};
-  const callback = params.callback || "callback";
   const payload = {
     success: true,
     transactions: readTransactions(),
     splits: readSplits()
   };
 
+  if (params.mode === "frame") {
+    const safePayload = JSON.stringify(payload).replace(/<\/script/gi, "<\\/script");
+    return HtmlService
+      .createHtmlOutput(`
+        <!doctype html>
+        <html>
+          <body>
+            <script>
+              window.parent.postMessage({
+                source: "expense-tracker-google-sheets",
+                payload: ${safePayload}
+              }, "*");
+            </script>
+          </body>
+        </html>
+      `)
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
+  const callback = params.callback || "callback";
   return ContentService
     .createTextOutput(`${callback}(${JSON.stringify(payload)});`)
     .setMimeType(ContentService.MimeType.JAVASCRIPT);
