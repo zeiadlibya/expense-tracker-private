@@ -1112,7 +1112,7 @@
     // ==========================================
     // UTILITIES
     // ==========================================
-    function showToast(message, duration = 2500) {
+    function showToast(message, duration = 1800) {
         if (!dom.toast || !dom.toastMessage) return;
 
         if (toastTimer) {
@@ -1121,16 +1121,31 @@
         }
 
         dom.toastMessage.textContent = message;
-        dom.toast.classList.remove('show');
+        dom.toast.classList.remove('show', 'hiding');
         dom.toast.setAttribute('aria-hidden', 'false');
         dom.toast.offsetHeight;
         dom.toast.classList.add('show');
 
         toastTimer = setTimeout(() => {
-            dom.toast.classList.remove('show');
-            dom.toast.setAttribute('aria-hidden', 'true');
-            toastTimer = null;
+            hideToast();
         }, duration);
+    }
+
+    function hideToast() {
+        if (!dom.toast) return;
+
+        dom.toast.classList.remove('show');
+        dom.toast.classList.add('hiding');
+        dom.toast.setAttribute('aria-hidden', 'true');
+
+        if (toastTimer) {
+            clearTimeout(toastTimer);
+            toastTimer = null;
+        }
+
+        setTimeout(() => {
+            if (dom.toast) dom.toast.classList.remove('hiding');
+        }, 350);
     }
 
     function shakeElement(el) {

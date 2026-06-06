@@ -1360,6 +1360,34 @@ button {
     transform: translateX(-50%) translateY(0);
     opacity: 1;
     visibility: visible;
+    animation: toastAutoHide 2.1s ease forwards;
+}
+
+.toast.hiding {
+    transform: translateX(-50%) translateY(120%);
+    opacity: 0;
+    visibility: hidden;
+}
+
+@keyframes toastAutoHide {
+    0% {
+        transform: translateX(-50%) translateY(120%);
+        opacity: 0;
+        visibility: visible;
+    }
+
+    12%,
+    78% {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+        visibility: visible;
+    }
+
+    100% {
+        transform: translateX(-50%) translateY(120%);
+        opacity: 0;
+        visibility: hidden;
+    }
 }
 
 .toast-content {
