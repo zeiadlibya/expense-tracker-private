@@ -1350,12 +1350,16 @@ button {
     left: 50%;
     transform: translateX(-50%) translateY(120%);
     z-index: 1000;
-    transition: transform var(--transition-slow);
+    opacity: 0;
+    visibility: hidden;
+    transition: transform var(--transition-slow), opacity var(--transition-normal), visibility var(--transition-normal);
     pointer-events: none;
 }
 
 .toast.show {
     transform: translateX(-50%) translateY(0);
+    opacity: 1;
+    visibility: visible;
 }
 
 .toast-content {

@@ -43,6 +43,7 @@
     let analyticsYear = new Date().getFullYear();
     let deleteTargetId = null;
     let isSyncing = false;
+    let toastTimer = null;
 
     // Chart instances
     let categoryChart = null;
@@ -58,28 +59,35 @@
     }
 
     async function syncFromCloud() {
-        if (!isOnlineMode() || isSyncing) return;
+        if (!isOnlineMode() || isSyncing) return { success: false, count: 0 };
         isSyncing = true;
         showSyncIndicator(true);
 
         try {
             const data = await getCloudData();
 
-            if (data.success) {
-                transactions = data.transactions || [];
-                incomeSplits = data.splits || { savings: 0, expenses: 0, emergency: 0 };
-
-                // حفظ نسخة محلية أيضاً
-                saveTransactionsLocal();
-                saveIncomeSplitsLocal();
-
-                updateHome();
-                if (document.querySelector('#page-analytics.active')) {
-                    updateAnalytics();
-                }
+            if (!data || !data.success || !Array.isArray(data.transactions)) {
+                throw new Error('Invalid Google Sheets response');
             }
+
+            transactions = normalizeTransactions(data.transactions);
+            incomeSplits = normalizeSplits(data.splits);
+
+            // حفظ نسخة محلية أيضاً
+            saveTransactionsLocal();
+            saveIncomeSplitsLocal();
+
+            updateHome();
+            if (document.querySelector('#page-analytics.active')) {
+                updateAnalytics();
+            }
+
+            updateConnectionStatus();
+            return { success: true, count: transactions.length };
         } catch (error) {
             console.warn('فشل المزامنة مع السحابة، استخدام البيانات المحلية:', error);
+            showToast('تعذر تحميل البيانات من Google Sheets');
+            return { success: false, count: 0 };
         } finally {
             isSyncing = false;
             showSyncIndicator(false);
@@ -130,6 +138,24 @@
             script.src = `${appsScriptUrl}${separator}action=getAll&callback=${callbackName}`;
             document.body.appendChild(script);
         });
+    }
+
+    function normalizeTransactions(items) {
+        return items.map(item => ({
+            ...item,
+            amount: Number(item.amount || 0),
+            description: item.description || item.note || '',
+            date: item.date || new Date().toISOString().split('T')[0],
+            createdAt: Number(item.createdAt || Date.now()),
+        }));
+    }
+
+    function normalizeSplits(value) {
+        return {
+            savings: Number(value && value.savings || 0),
+            expenses: Number(value && value.expenses || 0),
+            emergency: Number(value && value.emergency || 0),
+        };
     }
 
     function showSyncIndicator(show) {
@@ -425,11 +451,20 @@
         });
 
         if (dom.saveSheetUrlBtn) {
-            dom.saveSheetUrlBtn.addEventListener('click', () => {
+            dom.saveSheetUrlBtn.addEventListener('click', async () => {
                 appsScriptUrl = dom.sheetUrlInput.value.trim();
                 saveSheetUrl();
                 updateConnectionStatus();
-                showToast(appsScriptUrl ? 'تم حفظ رابط Google Sheets' : 'تم حذف رابط Google Sheets');
+                if (!appsScriptUrl) {
+                    showToast('تم حذف رابط Google Sheets');
+                    return;
+                }
+
+                showToast('تم حفظ الرابط، جارِ تحميل البيانات...');
+                const result = await syncFromCloud();
+                if (result.success) {
+                    showToast(`تم تحميل ${result.count} عملية من Google Sheets`);
+                }
             });
         }
 
@@ -441,8 +476,10 @@
                 }
 
                 showToast('جارِ تحميل البيانات من Google Sheets...');
-                await syncFromCloud();
-                showToast('تم تحديث البيانات من Google Sheets');
+                const result = await syncFromCloud();
+                if (result.success) {
+                    showToast(`تم تحميل ${result.count} عملية من Google Sheets`);
+                }
             });
         }
 
@@ -1075,10 +1112,25 @@
     // ==========================================
     // UTILITIES
     // ==========================================
-    function showToast(message) {
+    function showToast(message, duration = 2500) {
+        if (!dom.toast || !dom.toastMessage) return;
+
+        if (toastTimer) {
+            clearTimeout(toastTimer);
+            toastTimer = null;
+        }
+
         dom.toastMessage.textContent = message;
+        dom.toast.classList.remove('show');
+        dom.toast.setAttribute('aria-hidden', 'false');
+        dom.toast.offsetHeight;
         dom.toast.classList.add('show');
-        setTimeout(() => dom.toast.classList.remove('show'), 2500);
+
+        toastTimer = setTimeout(() => {
+            dom.toast.classList.remove('show');
+            dom.toast.setAttribute('aria-hidden', 'true');
+            toastTimer = null;
+        }, duration);
     }
 
     function shakeElement(el) {
