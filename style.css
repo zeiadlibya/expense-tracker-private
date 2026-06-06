@@ -1175,6 +1175,17 @@ button {
     font-weight: 600;
 }
 
+.auto-split-note {
+    margin-bottom: var(--space-lg);
+    padding: var(--space-md);
+    border: 1px solid rgba(139, 92, 246, 0.22);
+    border-radius: var(--radius-md);
+    background: rgba(139, 92, 246, 0.08);
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    line-height: 1.8;
+}
+
 /* Submit Button */
 .submit-btn {
     width: 100%;

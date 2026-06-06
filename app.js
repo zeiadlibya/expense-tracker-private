@@ -20,6 +20,11 @@
         SHEET_URL: 'wallet_sheet_url',
     };
     const APP_PIN = '2580';
+    const FIXED_SPLIT_RATIOS = {
+        savings: 0.30,
+        expenses: 0.50,
+        emergency: 0.20,
+    };
 
     const CATEGORIES = {
         food: { label: 'غذائية', emoji: '🍽️', color: '#f97316' },
@@ -99,6 +104,8 @@
         if (!isOnlineMode()) return;
 
         try {
+            incomeSplits = calculateCurrentWalletSplits();
+            saveIncomeSplitsLocal();
             const body = new URLSearchParams({
                 action: 'saveAll',
                 transactions: JSON.stringify(transactions),
@@ -316,17 +323,6 @@
         incomeAmount: $('#income-amount'),
         incomeDesc: $('#income-desc'),
         incomeDate: $('#income-date'),
-        savingsSlider: $('#savings-slider'),
-        expensesSlider: $('#expenses-slider'),
-        emergencySlider: $('#emergency-slider'),
-        savingsPercent: $('#savings-percent'),
-        expensesPercent: $('#expenses-percent'),
-        emergencyPercent: $('#emergency-percent'),
-        savingsPreview: $('#savings-preview'),
-        expensesPreview: $('#expenses-preview'),
-        emergencyPreview: $('#emergency-preview'),
-        splitTotalFill: $('#split-total-fill'),
-        splitTotalText: $('#split-total-text'),
         addIncomeBtn: $('#add-income-btn'),
 
         // Analytics
@@ -400,7 +396,6 @@
 
         // Update all views
         updateHome();
-        updateSplitPreviews();
 
         // Show lock screen after splash
         setTimeout(() => {
@@ -503,14 +498,6 @@
         // Add income
         dom.addIncomeBtn.addEventListener('click', addIncome);
 
-        // Sliders
-        dom.savingsSlider.addEventListener('input', handleSliderChange);
-        dom.expensesSlider.addEventListener('input', handleSliderChange);
-        dom.emergencySlider.addEventListener('input', handleSliderChange);
-
-        // Income amount change for previews
-        dom.incomeAmount.addEventListener('input', updateSplitPreviews);
-
         // Analytics month navigation
         dom.prevMonth.addEventListener('click', () => {
             analyticsMonth++;
@@ -541,7 +528,6 @@
             currency = dom.currencySelect.value;
             saveCurrency();
             updateHome();
-            updateSplitPreviews();
             updateAnalytics();
         });
 
@@ -710,38 +696,11 @@
             return;
         }
 
-        const savingsP = parseInt(dom.savingsSlider.value);
-        const expensesP = parseInt(dom.expensesSlider.value);
-        const emergencyP = parseInt(dom.emergencySlider.value);
-        const total = savingsP + expensesP + emergencyP;
-
-        if (total !== 100) {
-            showToast('مجموع النسب يجب أن يكون 100%');
-            return;
-        }
-
-        const savingsAmt = (amount * savingsP) / 100;
-        const expensesAmt = (amount * expensesP) / 100;
-        const emergencyAmt = (amount * emergencyP) / 100;
-
-        incomeSplits.savings += savingsAmt;
-        incomeSplits.expenses += expensesAmt;
-        incomeSplits.emergency += emergencyAmt;
-        saveIncomeSplits();
-
         const transaction = {
             id: generateId(),
             type: 'income',
             amount: amount,
             description: dom.incomeDesc.value.trim(),
-            splits: {
-                savings: savingsAmt,
-                expenses: expensesAmt,
-                emergency: emergencyAmt,
-                savingsPercent: savingsP,
-                expensesPercent: expensesP,
-                emergencyPercent: emergencyP,
-            },
             date: dom.incomeDate.value || new Date().toISOString().split('T')[0],
             createdAt: Date.now(),
         };
@@ -749,7 +708,6 @@
         transactions.unshift(transaction);
         saveTransactions();
         updateHome();
-        updateSplitPreviews();
 
         // حفظ في السحابة
         pushToCloud('addTransaction', { transaction, splits: incomeSplits });
@@ -769,20 +727,6 @@
         const txIndex = transactions.findIndex(t => t.id === id);
         if (txIndex === -1) return;
 
-        const tx = transactions[txIndex];
-
-        if (tx.type === 'income' && tx.splits) {
-            incomeSplits.savings -= tx.splits.savings;
-            incomeSplits.expenses -= tx.splits.expenses;
-            incomeSplits.emergency -= tx.splits.emergency;
-
-            incomeSplits.savings = Math.max(0, incomeSplits.savings);
-            incomeSplits.expenses = Math.max(0, incomeSplits.expenses);
-            incomeSplits.emergency = Math.max(0, incomeSplits.emergency);
-
-            saveIncomeSplits();
-        }
-
         transactions.splice(txIndex, 1);
         saveTransactions();
         updateHome();
@@ -794,53 +738,9 @@
     }
 
     // ==========================================
-    // SLIDER HANDLING
+    // FIXED WALLET SPLITS
     // ==========================================
-    function handleSliderChange() {
-        const s = parseInt(dom.savingsSlider.value);
-        const e = parseInt(dom.expensesSlider.value);
-        const em = parseInt(dom.emergencySlider.value);
-        const total = s + e + em;
-
-        dom.savingsPercent.textContent = s + '%';
-        dom.expensesPercent.textContent = e + '%';
-        dom.emergencyPercent.textContent = em + '%';
-
-        const fillPercent = Math.min(total, 100);
-        dom.splitTotalFill.style.width = fillPercent + '%';
-
-        if (total === 100) {
-            dom.splitTotalFill.style.background = 'linear-gradient(90deg, var(--income-green), var(--savings-blue))';
-            dom.splitTotalText.textContent = 'المجموع: 100% ✓';
-            dom.splitTotalText.style.color = 'var(--income-green)';
-        } else if (total > 100) {
-            dom.splitTotalFill.style.background = 'var(--expense-red)';
-            dom.splitTotalText.textContent = `المجموع: ${total}% ⚠️ (يجب أن يكون 100%)`;
-            dom.splitTotalText.style.color = 'var(--expense-red)';
-        } else {
-            dom.splitTotalFill.style.background = 'var(--emergency-amber)';
-            dom.splitTotalText.textContent = `المجموع: ${total}% (يجب أن يكون 100%)`;
-            dom.splitTotalText.style.color = 'var(--emergency-amber)';
-        }
-
-        updateSplitPreviews();
-    }
-
-    function updateSplitPreviews() {
-        const amount = parseFloat(dom.incomeAmount.value) || 0;
-        const s = parseInt(dom.savingsSlider.value);
-        const e = parseInt(dom.expensesSlider.value);
-        const em = parseInt(dom.emergencySlider.value);
-
-        dom.savingsPreview.textContent = formatMoneyWithCurrency((amount * s) / 100);
-        dom.expensesPreview.textContent = formatMoneyWithCurrency((amount * e) / 100);
-        dom.emergencyPreview.textContent = formatMoneyWithCurrency((amount * em) / 100);
-    }
-
-    // ==========================================
-    // UPDATE HOME
-    // ==========================================
-    function updateHome() {
+    function getTotals() {
         const totalIncome = transactions
             .filter(t => t.type === 'income')
             .reduce((sum, t) => sum + t.amount, 0);
@@ -848,6 +748,29 @@
         const totalExpenses = transactions
             .filter(t => t.type === 'expense')
             .reduce((sum, t) => sum + t.amount, 0);
+
+        return { totalIncome, totalExpenses, balance: totalIncome - totalExpenses };
+    }
+
+    function calculateSplitsFromBalance(balance) {
+        const available = Math.max(0, balance);
+
+        return {
+            savings: available * FIXED_SPLIT_RATIOS.savings,
+            expenses: available * FIXED_SPLIT_RATIOS.expenses,
+            emergency: available * FIXED_SPLIT_RATIOS.emergency,
+        };
+    }
+
+    function calculateCurrentWalletSplits() {
+        return calculateSplitsFromBalance(getTotals().balance);
+    }
+
+    // ==========================================
+    // UPDATE HOME
+    // ==========================================
+    function updateHome() {
+        const { totalIncome, totalExpenses, balance } = getTotals();
 
         const cashExpenses = transactions
             .filter(t => t.type === 'expense' && t.paymentMethod === 'cash')
@@ -857,7 +780,8 @@
             .filter(t => t.type === 'expense' && t.paymentMethod === 'card')
             .reduce((sum, t) => sum + t.amount, 0);
 
-        const balance = totalIncome - totalExpenses;
+        incomeSplits = calculateSplitsFromBalance(balance);
+        saveIncomeSplitsLocal();
 
         dom.totalBalance.textContent = formatMoneyWithCurrency(balance);
         dom.totalIncome.textContent = formatMoneyWithCurrency(totalIncome);
@@ -1004,21 +928,15 @@
             .filter(t => t.type === 'expense' && t.paymentMethod === 'card')
             .reduce((sum, t) => sum + t.amount, 0);
 
-        const monthSavings = monthTransactions
-            .filter(t => t.type === 'income' && t.splits)
-            .reduce((sum, t) => sum + (t.splits.savings || 0), 0);
-
-        const monthExpensesSplit = monthTransactions
-            .filter(t => t.type === 'income' && t.splits)
-            .reduce((sum, t) => sum + (t.splits.expenses || 0), 0);
-
-        const monthEmergency = monthTransactions
-            .filter(t => t.type === 'income' && t.splits)
-            .reduce((sum, t) => sum + (t.splits.emergency || 0), 0);
+        const monthBalance = monthIncome - monthExpenses;
+        const monthSplits = calculateSplitsFromBalance(monthBalance);
+        const monthSavings = monthSplits.savings;
+        const monthExpensesSplit = monthSplits.expenses;
+        const monthEmergency = monthSplits.emergency;
 
         dom.aTotalIncome.textContent = formatMoneyWithCurrency(monthIncome);
         dom.aTotalExpenses.textContent = formatMoneyWithCurrency(monthExpenses);
-        dom.aBalance.textContent = formatMoneyWithCurrency(monthIncome - monthExpenses);
+        dom.aBalance.textContent = formatMoneyWithCurrency(monthBalance);
         dom.aCashTotal.textContent = formatMoneyWithCurrency(monthCash);
         dom.aCardTotal.textContent = formatMoneyWithCurrency(monthCard);
         dom.aSavings.textContent = formatMoneyWithCurrency(monthSavings);

@@ -311,42 +311,8 @@
                             <input type="text" id="income-desc" class="text-input" placeholder="مثال: راتب، عمل حر...">
                         </div>
 
-                        <!-- Split Percentages -->
-                        <div class="form-group">
-                            <label class="form-label">توزيع الدخل</label>
-                            <div class="split-controls">
-                                <div class="split-control">
-                                    <div class="split-control-header">
-                                        <span class="split-dot savings-dot"></span>
-                                        <span>التوفير</span>
-                                        <span class="split-percent" id="savings-percent">20%</span>
-                                    </div>
-                                    <input type="range" id="savings-slider" class="split-slider savings-slider" min="0" max="100" value="20">
-                                    <span class="split-preview" id="savings-preview">0.00 د.ل</span>
-                                </div>
-                                <div class="split-control">
-                                    <div class="split-control-header">
-                                        <span class="split-dot expenses-dot"></span>
-                                        <span>المصروفات</span>
-                                        <span class="split-percent" id="expenses-percent">60%</span>
-                                    </div>
-                                    <input type="range" id="expenses-slider" class="split-slider expenses-slider" min="0" max="100" value="60">
-                                    <span class="split-preview" id="expenses-preview">0.00 د.ل</span>
-                                </div>
-                                <div class="split-control">
-                                    <div class="split-control-header">
-                                        <span class="split-dot emergency-dot"></span>
-                                        <span>الطوارئ</span>
-                                        <span class="split-percent" id="emergency-percent">20%</span>
-                                    </div>
-                                    <input type="range" id="emergency-slider" class="split-slider emergency-slider" min="0" max="100" value="20">
-                                    <span class="split-preview" id="emergency-preview">0.00 د.ل</span>
-                                </div>
-                                <div class="split-total-bar">
-                                    <div class="split-total-fill" id="split-total-fill"></div>
-                                </div>
-                                <p class="split-total-text" id="split-total-text">المجموع: 100%</p>
-                            </div>
+                        <div class="auto-split-note">
+                            يتم توزيع الرصيد تلقائياً: 30% توفير، 50% مصروفات، 20% طوارئ.
                         </div>
 
                         <!-- Date -->
