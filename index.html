@@ -334,6 +334,10 @@
             <section id="page-analytics" class="page">
                 <div class="page-scroll">
                     <!-- Month Selector -->
+                    <div class="analytics-mode-toggle" aria-label="نطاق التحليل">
+                        <button class="analytics-mode-btn active" id="analytics-all-btn" type="button">كل البيانات</button>
+                        <button class="analytics-mode-btn" id="analytics-month-btn" type="button">شهر محدد</button>
+                    </div>
                     <div class="month-selector">
                         <button class="month-nav-btn" id="prev-month">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
@@ -416,7 +420,7 @@
 
                     <!-- Daily Spending Chart -->
                     <div class="chart-card">
-                        <h3 class="chart-title">الإنفاق اليومي</h3>
+                        <h3 class="chart-title" id="spending-chart-title">الإنفاق حسب الشهر</h3>
                         <div class="chart-container chart-container-bar">
                             <canvas id="daily-chart"></canvas>
                         </div>

@@ -45,6 +45,7 @@
     let appsScriptUrl = loadSheetUrl();
     let transactions = loadTransactions();
     let incomeSplits = loadIncomeSplits();
+    let analyticsMode = 'all';
     let analyticsMonth = new Date().getMonth();
     let analyticsYear = new Date().getFullYear();
     let deleteTargetId = null;
@@ -326,9 +327,12 @@
         addIncomeBtn: $('#add-income-btn'),
 
         // Analytics
+        analyticsAllBtn: $('#analytics-all-btn'),
+        analyticsMonthBtn: $('#analytics-month-btn'),
         analyticsMonth: $('#analytics-month'),
         prevMonth: $('#prev-month'),
         nextMonth: $('#next-month'),
+        spendingChartTitle: $('#spending-chart-title'),
         aTotalIncome: $('#a-total-income'),
         aTotalExpenses: $('#a-total-expenses'),
         aBalance: $('#a-balance'),
@@ -499,7 +503,18 @@
         dom.addIncomeBtn.addEventListener('click', addIncome);
 
         // Analytics month navigation
+        dom.analyticsAllBtn.addEventListener('click', () => {
+            analyticsMode = 'all';
+            updateAnalytics();
+        });
+
+        dom.analyticsMonthBtn.addEventListener('click', () => {
+            analyticsMode = 'month';
+            updateAnalytics();
+        });
+
         dom.prevMonth.addEventListener('click', () => {
+            analyticsMode = 'month';
             analyticsMonth++;
             if (analyticsMonth > 11) {
                 analyticsMonth = 0;
@@ -509,6 +524,7 @@
         });
 
         dom.nextMonth.addEventListener('click', () => {
+            analyticsMode = 'month';
             analyticsMonth--;
             if (analyticsMonth < 0) {
                 analyticsMonth = 11;
@@ -894,37 +910,77 @@
     }
 
     function formatDate(dateStr) {
-        const date = new Date(dateStr + 'T00:00:00');
+        const date = parseTransactionDate(dateStr) || new Date();
         const day = date.getDate();
         const month = MONTHS_AR[date.getMonth()];
         const year = date.getFullYear();
         return `${day} ${month} ${year}`;
     }
 
+    function parseTransactionDate(value) {
+        if (!value) return null;
+
+        if (value instanceof Date && !Number.isNaN(value.getTime())) {
+            return value;
+        }
+
+        const text = String(value).trim();
+        if (!text) return null;
+
+        const dateOnly = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+        if (dateOnly) {
+            return new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
+        }
+
+        const isoDate = new Date(text);
+        if (!Number.isNaN(isoDate.getTime())) {
+            return isoDate;
+        }
+
+        const slashDate = text.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+        if (slashDate) {
+            return new Date(Number(slashDate[3]), Number(slashDate[2]) - 1, Number(slashDate[1]));
+        }
+
+        return null;
+    }
+
+    function isTransactionInSelectedMonth(transaction) {
+        const date = parseTransactionDate(transaction.date);
+        if (!date) return false;
+        return date.getMonth() === analyticsMonth && date.getFullYear() === analyticsYear;
+    }
+
+    function getAnalyticsTransactions() {
+        if (analyticsMode === 'all') return transactions;
+        return transactions.filter(isTransactionInSelectedMonth);
+    }
+
     // ==========================================
     // ANALYTICS
     // ==========================================
     function updateAnalytics() {
-        dom.analyticsMonth.textContent = `${MONTHS_AR[analyticsMonth]} ${analyticsYear}`;
+        const isAllMode = analyticsMode === 'all';
+        dom.analyticsAllBtn.classList.toggle('active', isAllMode);
+        dom.analyticsMonthBtn.classList.toggle('active', !isAllMode);
+        dom.analyticsMonth.textContent = isAllMode ? 'كل الفترات' : `${MONTHS_AR[analyticsMonth]} ${analyticsYear}`;
+        dom.spendingChartTitle.textContent = isAllMode ? 'الإنفاق حسب الشهر' : 'الإنفاق اليومي';
 
-        const monthTransactions = transactions.filter(t => {
-            const d = new Date(t.date + 'T00:00:00');
-            return d.getMonth() === analyticsMonth && d.getFullYear() === analyticsYear;
-        });
+        const scopedTransactions = getAnalyticsTransactions();
 
-        const monthIncome = monthTransactions
+        const monthIncome = scopedTransactions
             .filter(t => t.type === 'income')
             .reduce((sum, t) => sum + t.amount, 0);
 
-        const monthExpenses = monthTransactions
+        const monthExpenses = scopedTransactions
             .filter(t => t.type === 'expense')
             .reduce((sum, t) => sum + t.amount, 0);
 
-        const monthCash = monthTransactions
+        const monthCash = scopedTransactions
             .filter(t => t.type === 'expense' && t.paymentMethod === 'cash')
             .reduce((sum, t) => sum + t.amount, 0);
 
-        const monthCard = monthTransactions
+        const monthCard = scopedTransactions
             .filter(t => t.type === 'expense' && t.paymentMethod === 'card')
             .reduce((sum, t) => sum + t.amount, 0);
 
@@ -943,10 +999,10 @@
         dom.aExpensesSplit.textContent = formatMoneyWithCurrency(monthExpensesSplit);
         dom.aEmergency.textContent = formatMoneyWithCurrency(monthEmergency);
 
-        updateCategoryChart(monthTransactions);
+        updateCategoryChart(scopedTransactions);
         updatePaymentChart(monthCash, monthCard);
         updateIncomeDistChart(monthSavings, monthExpensesSplit, monthEmergency);
-        updateDailyChart(monthTransactions);
+        updateSpendingTrendChart(scopedTransactions);
     }
 
     function updateCategoryChart(monthTransactions) {
@@ -1062,17 +1118,62 @@
         });
     }
 
-    function updateDailyChart(monthTransactions) {
+    function updateSpendingTrendChart(scopedTransactions) {
         const ctx = document.getElementById('daily-chart').getContext('2d');
         if (dailyChart) dailyChart.destroy();
 
+        if (analyticsMode === 'all') {
+            updateMonthlySpendingChart(ctx, scopedTransactions);
+            return;
+        }
+
+        updateDailyChart(ctx, scopedTransactions);
+    }
+
+    function updateMonthlySpendingChart(ctx, scopedTransactions) {
+        const monthlyTotals = new Map();
+
+        scopedTransactions
+            .filter(t => t.type === 'expense')
+            .forEach(t => {
+                const date = parseTransactionDate(t.date);
+                if (!date) return;
+                const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                monthlyTotals.set(key, (monthlyTotals.get(key) || 0) + t.amount);
+            });
+
+        const sorted = [...monthlyTotals.entries()].sort(([a], [b]) => a.localeCompare(b));
+        const labels = sorted.length ? sorted.map(([key]) => {
+            const [year, month] = key.split('-').map(Number);
+            return `${MONTHS_AR[month - 1]} ${year}`;
+        }) : ['لا توجد بيانات'];
+        const values = sorted.length ? sorted.map(([, value]) => value) : [0];
+
+        dailyChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'المصروفات', data: values,
+                    backgroundColor: 'rgba(139, 92, 246, 0.5)',
+                    hoverBackgroundColor: 'rgba(139, 92, 246, 0.8)',
+                    borderRadius: 4, borderSkipped: false,
+                }]
+            },
+            options: getBarChartOptions()
+        });
+    }
+
+    function updateDailyChart(ctx, monthTransactions) {
         const daysInMonth = new Date(analyticsYear, analyticsMonth + 1, 0).getDate();
         const dailyData = new Array(daysInMonth).fill(0);
 
         monthTransactions
             .filter(t => t.type === 'expense')
             .forEach(t => {
-                const day = new Date(t.date + 'T00:00:00').getDate();
+                const date = parseTransactionDate(t.date);
+                if (!date) return;
+                const day = date.getDate();
                 if (day >= 1 && day <= daysInMonth) {
                     dailyData[day - 1] += t.amount;
                 }
@@ -1091,7 +1192,12 @@
                     borderRadius: 4, borderSkipped: false,
                 }]
             },
-            options: {
+            options: getBarChartOptions()
+        });
+    }
+
+    function getBarChartOptions() {
+        return {
                 responsive: true, maintainAspectRatio: false,
                 scales: {
                     x: {
@@ -1118,8 +1224,7 @@
                         }
                     }
                 }
-            }
-        });
+            };
     }
 
     // ==========================================

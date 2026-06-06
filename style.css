@@ -1233,6 +1233,32 @@ button {
 /* ============================================
    ANALYTICS PAGE
    ============================================ */
+.analytics-mode-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-sm);
+    padding: 5px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+}
+
+.analytics-mode-btn {
+    min-height: 42px;
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 800;
+    transition: all var(--transition-fast);
+}
+
+.analytics-mode-btn.active {
+    color: #fff;
+    background: linear-gradient(135deg, var(--accent-purple-dark), var(--accent-purple));
+    box-shadow: 0 8px 20px rgba(139, 92, 246, 0.18);
+}
+
 .month-selector {
     display: flex;
     align-items: center;
