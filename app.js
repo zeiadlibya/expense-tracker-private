@@ -99,6 +99,7 @@
     let authUser = null;
     let appFlowStarted = false;
     let authMode = 'login';
+    let authStateListenerAttached = false;
 
     // Chart instances
     let categoryChart = null;
@@ -761,50 +762,84 @@
         }
 
         try {
+            attachAuthStateListener();
+
             const { data, error } = await supabaseClient.auth.getSession();
             if (error) throw error;
 
             const session = data && data.session;
             if (session && session.user) {
-                authUser = session.user;
-                updateAccountUI(authUser);
-                await initializeFinancialData();
-                startAuthenticatedFlow();
+                await handleAuthenticatedUser(session.user);
             } else {
                 showAuthOnly();
                 updateAccountUI(null);
             }
-
-            supabaseClient.auth.onAuthStateChange(async (event, sessionState) => {
-                if (sessionState && sessionState.user) {
-                    authUser = sessionState.user;
-                    updateAccountUI(authUser);
-                    try {
-                        await initializeFinancialData();
-                        startAuthenticatedFlow();
-                    } catch (error) {
-                        console.error('Financial data load failed:', error);
-                        showAuthOnly('تعذر تحميل البيانات المالية من Supabase.', 'error');
-                    }
-                    return;
-                }
-
-                authUser = null;
-                appFlowStarted = false;
-                transactions = [];
-                walletBalances = { ...DEFAULT_WALLET_BALANCES };
-                userSettings = { ...DEFAULT_USER_SETTINGS };
-                updateAccountUI(null);
-                showAuthOnly(
-                    event === 'SIGNED_OUT' ? 'تم تسجيل الخروج بنجاح.' : '',
-                    event === 'SIGNED_OUT' ? 'success' : ''
-                );
-            });
         } catch (error) {
             console.error('Supabase auth init failed:', error);
-            showAuthOnly('تعذر الاتصال بـ Supabase. تأكد من الرابط والمفتاح العام.', 'error');
+            showAuthOnly(`تعذر الاتصال بـ Supabase: ${getReadableSupabaseError(error)}`, 'error');
             updateAccountUI(null);
         }
+    }
+
+    function attachAuthStateListener() {
+        if (authStateListenerAttached || !supabaseClient) return;
+        authStateListenerAttached = true;
+
+        supabaseClient.auth.onAuthStateChange(async (event, sessionState) => {
+            if (sessionState && sessionState.user) {
+                await handleAuthenticatedUser(sessionState.user);
+                return;
+            }
+
+            authUser = null;
+            appFlowStarted = false;
+            transactions = [];
+            walletBalances = { ...DEFAULT_WALLET_BALANCES };
+            userSettings = { ...DEFAULT_USER_SETTINGS };
+            updateAccountUI(null);
+            showAuthOnly(
+                event === 'SIGNED_OUT' ? 'تم تسجيل الخروج بنجاح.' : '',
+                event === 'SIGNED_OUT' ? 'success' : ''
+            );
+        });
+    }
+
+    async function handleAuthenticatedUser(user) {
+        authUser = user;
+        updateAccountUI(authUser);
+
+        try {
+            await initializeFinancialData();
+            startAuthenticatedFlow();
+        } catch (error) {
+            console.error('Financial data load failed:', error);
+            showAuthOnly(`تم تسجيل الدخول، لكن تعذر تحميل البيانات المالية: ${getReadableSupabaseError(error)}`, 'error');
+        }
+    }
+
+    function getReadableSupabaseError(error) {
+        const message = error && error.message ? error.message : '';
+        const code = error && error.code ? ` (${error.code})` : '';
+        const normalized = message.toLowerCase();
+
+        if (normalized.includes('row-level security') || normalized.includes('rls')) {
+            return 'راجع سياسات RLS للجداول المالية.';
+        }
+
+        if (normalized.includes('permission denied') || normalized.includes('violates row-level security')) {
+            return 'لا توجد صلاحية كافية لإضافة أو قراءة بيانات هذا المستخدم.';
+        }
+
+        if (normalized.includes('relation') && normalized.includes('does not exist')) {
+            return 'أحد الجداول المالية غير موجود أو اسمه مختلف.';
+        }
+
+        if (normalized.includes('column') && normalized.includes('does not exist')) {
+            return 'أحد أسماء الأعمدة في Supabase مختلف عن الكود.';
+        }
+
+        if (message) return `${message}${code}`;
+        return 'راجع الجداول وسياسات RLS في Supabase.';
     }
 
     async function signUpWithEmail() {
