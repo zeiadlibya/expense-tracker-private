@@ -70,6 +70,7 @@
     let toastTimer = null;
     let authUser = null;
     let appFlowStarted = false;
+    let authMode = 'login';
 
     // Chart instances
     let categoryChart = null;
@@ -310,6 +311,8 @@
     const dom = {
         authScreen: $('#auth-screen'),
         authForm: $('#auth-form'),
+        authTitle: $('#auth-title'),
+        authSubtitle: $('#auth-subtitle'),
         authEmail: $('#auth-email'),
         authPassword: $('#auth-password'),
         authLoginBtn: $('#auth-login-btn'),
@@ -438,11 +441,16 @@
 
         dom.authForm.addEventListener('submit', (event) => {
             event.preventDefault();
+            if (authMode === 'signup') {
+                signUpWithEmail();
+                return;
+            }
+
             signInWithEmail();
         });
 
         dom.authSignupBtn.addEventListener('click', () => {
-            signUpWithEmail();
+            updateAuthMode(authMode === 'login' ? 'signup' : 'login');
         });
 
         dom.logoutBtn.addEventListener('click', () => {
@@ -570,6 +578,7 @@
     }
 
     function showAuthOnly(message = '', type = '') {
+        updateAuthMode('login', { keepMessage: true });
         if (dom.splash) dom.splash.classList.add('hidden');
         if (dom.lockScreen) {
             dom.lockScreen.classList.add('hidden');
@@ -612,6 +621,33 @@
         }
     }
 
+    function updateAuthMode(mode, options = {}) {
+        authMode = mode === 'signup' ? 'signup' : 'login';
+
+        const isSignup = authMode === 'signup';
+        if (dom.authTitle) {
+            dom.authTitle.textContent = isSignup ? 'إنشاء حساب Cashgo' : 'Cashgo';
+        }
+        if (dom.authSubtitle) {
+            dom.authSubtitle.textContent = isSignup
+                ? 'أنشئ حسابك لحفظ بياناتك بأمان'
+                : 'إدارة مصروفاتك اليومية بسهولة';
+        }
+        if (dom.authPassword) {
+            dom.authPassword.autocomplete = isSignup ? 'new-password' : 'current-password';
+        }
+        if (dom.authLoginBtn) {
+            dom.authLoginBtn.textContent = isSignup ? 'إنشاء الحساب' : 'تسجيل الدخول';
+        }
+        if (dom.authSignupBtn) {
+            dom.authSignupBtn.textContent = isSignup ? 'لدي حساب بالفعل' : 'إنشاء حساب';
+        }
+
+        if (!options.keepMessage) {
+            setAuthMessage('');
+        }
+    }
+
     function setAuthLoading(isLoading) {
         [dom.authLoginBtn, dom.authSignupBtn].forEach((btn) => {
             if (!btn) return;
@@ -619,7 +655,9 @@
         });
 
         if (dom.authLoginBtn) {
-            dom.authLoginBtn.textContent = isLoading ? 'جارِ المعالجة...' : 'تسجيل الدخول';
+            dom.authLoginBtn.textContent = isLoading
+                ? 'جارِ المعالجة...'
+                : (authMode === 'signup' ? 'إنشاء الحساب' : 'تسجيل الدخول');
         }
     }
 
