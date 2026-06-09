@@ -42,6 +42,32 @@
         expenses: 0.50,
         emergency: 0.20,
     };
+    const DEFAULT_USER_SETTINGS = {
+        currency: 'LYD',
+        theme: 'light',
+        expenses_percentage: 50,
+        savings_percentage: 30,
+        emergency_percentage: 20,
+    };
+    const DEFAULT_WALLET_BALANCES = {
+        expenses_balance: 0,
+        savings_balance: 0,
+        emergency_balance: 0,
+        total_income: 0,
+        total_spent: 0,
+    };
+    const CURRENCY_LABELS = {
+        LYD: 'د.ل',
+        SAR: 'ر.س',
+        AED: 'د.إ',
+        USD: '$',
+        EUR: '€',
+    };
+    const WALLET_LABELS = {
+        expenses: 'المصروفات',
+        savings: 'الادخار',
+        emergency: 'الطوارئ',
+    };
 
     const CATEGORIES = {
         food: { label: 'غذائية', emoji: '🍽️', color: '#f97316' },
@@ -60,8 +86,10 @@
 
     let currency = loadCurrency();
     let appsScriptUrl = loadSheetUrl();
-    let transactions = loadTransactions();
-    let incomeSplits = loadIncomeSplits();
+    let transactions = [];
+    let incomeSplits = { savings: 0, expenses: 0, emergency: 0 };
+    let userSettings = { ...DEFAULT_USER_SETTINGS };
+    let walletBalances = { ...DEFAULT_WALLET_BALANCES };
     let analyticsMode = 'all';
     let analyticsMonth = new Date().getMonth();
     let analyticsYear = new Date().getFullYear();
@@ -289,8 +317,261 @@
         localStorage.setItem(STORAGE_KEYS.SHEET_URL, appsScriptUrl);
     }
 
+    async function initializeFinancialData() {
+        await loadUserSettings();
+        await loadWalletBalances();
+        await loadRecentRecords();
+        updateHome();
+        updateAnalytics();
+    }
+
+    async function loadUserSettings() {
+        if (!supabaseClient) return userSettings;
+        const userId = requireFinancialUser();
+
+        const { data, error } = await supabaseClient
+            .from('user_settings')
+            .select('expenses_percentage, savings_percentage, emergency_percentage, currency, theme')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (error) throw error;
+
+        if (!data) {
+            const defaults = { user_id: userId, ...DEFAULT_USER_SETTINGS };
+            const { data: inserted, error: insertError } = await supabaseClient
+                .from('user_settings')
+                .insert(defaults)
+                .select('expenses_percentage, savings_percentage, emergency_percentage, currency, theme')
+                .single();
+
+            if (insertError) throw insertError;
+            userSettings = normalizeUserSettings(inserted || defaults);
+        } else {
+            userSettings = normalizeUserSettings(data);
+        }
+
+        currency = getCurrencyDisplay(userSettings.currency);
+        if (dom.currencySelect) {
+            dom.currencySelect.value = currency;
+        }
+        updateDistributionSummary();
+        updateCurrencyBadges();
+        return userSettings;
+    }
+
+    async function saveUserSettings(nextSettings) {
+        if (!supabaseClient) return null;
+        const userId = requireFinancialUser();
+
+        const payload = {
+            user_id: userId,
+            currency: nextSettings.currency || userSettings.currency || DEFAULT_USER_SETTINGS.currency,
+            theme: nextSettings.theme || userSettings.theme || DEFAULT_USER_SETTINGS.theme,
+            expenses_percentage: Number(nextSettings.expenses_percentage),
+            savings_percentage: Number(nextSettings.savings_percentage),
+            emergency_percentage: Number(nextSettings.emergency_percentage),
+        };
+
+        let { data, error } = await supabaseClient
+            .from('user_settings')
+            .update(payload)
+            .eq('user_id', userId)
+            .select('expenses_percentage, savings_percentage, emergency_percentage, currency, theme')
+            .maybeSingle();
+
+        if (error) throw error;
+
+        if (!data) {
+            const insertResult = await supabaseClient
+                .from('user_settings')
+                .insert(payload)
+                .select('expenses_percentage, savings_percentage, emergency_percentage, currency, theme')
+                .single();
+
+            if (insertResult.error) throw insertResult.error;
+            data = insertResult.data;
+        }
+
+        userSettings = normalizeUserSettings(data || payload);
+        currency = getCurrencyDisplay(userSettings.currency);
+        if (dom.currencySelect) {
+            dom.currencySelect.value = currency;
+        }
+        updateDistributionSummary();
+        updateCurrencyBadges();
+        return userSettings;
+    }
+
+    async function loadWalletBalances() {
+        if (!supabaseClient) return walletBalances;
+        const userId = requireFinancialUser();
+
+        const { data, error } = await supabaseClient
+            .from('wallet_balances')
+            .select('expenses_balance, savings_balance, emergency_balance, total_income, total_spent')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (error) throw error;
+
+        if (!data) {
+            const defaults = { user_id: userId, ...DEFAULT_WALLET_BALANCES };
+            const { data: inserted, error: insertError } = await supabaseClient
+                .from('wallet_balances')
+                .insert(defaults)
+                .select('expenses_balance, savings_balance, emergency_balance, total_income, total_spent')
+                .single();
+
+            if (insertError) throw insertError;
+            walletBalances = normalizeWalletBalances(inserted || defaults);
+        } else {
+            walletBalances = normalizeWalletBalances(data);
+        }
+
+        return walletBalances;
+    }
+
+    async function saveWalletBalances(nextBalances) {
+        if (!supabaseClient) return null;
+        const userId = requireFinancialUser();
+        const payload = {
+            user_id: userId,
+            expenses_balance: Number(nextBalances.expenses_balance || 0),
+            savings_balance: Number(nextBalances.savings_balance || 0),
+            emergency_balance: Number(nextBalances.emergency_balance || 0),
+            total_income: Number(nextBalances.total_income || 0),
+            total_spent: Number(nextBalances.total_spent || 0),
+        };
+
+        let { data, error } = await supabaseClient
+            .from('wallet_balances')
+            .update(payload)
+            .eq('user_id', userId)
+            .select('expenses_balance, savings_balance, emergency_balance, total_income, total_spent')
+            .maybeSingle();
+
+        if (error) throw error;
+
+        if (!data) {
+            const insertResult = await supabaseClient
+                .from('wallet_balances')
+                .insert(payload)
+                .select('expenses_balance, savings_balance, emergency_balance, total_income, total_spent')
+                .single();
+
+            if (insertResult.error) throw insertResult.error;
+            data = insertResult.data;
+        }
+
+        walletBalances = normalizeWalletBalances(data || payload);
+        return walletBalances;
+    }
+
+    async function loadRecentRecords() {
+        if (!supabaseClient) return transactions;
+        const userId = requireFinancialUser();
+
+        const [incomeResult, expenseResult] = await Promise.all([
+            supabaseClient
+                .from('incomes')
+                .select('id, amount, note, income_date, expenses_amount, savings_amount, emergency_amount, created_at')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+                .limit(50),
+            supabaseClient
+                .from('transactions')
+                .select('id, amount, category, source_wallet, payment_method, note, transaction_date, created_at')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+                .limit(50),
+        ]);
+
+        if (incomeResult.error) throw incomeResult.error;
+        if (expenseResult.error) throw expenseResult.error;
+
+        const incomes = (incomeResult.data || []).map(normalizeIncomeRecord);
+        const expenses = (expenseResult.data || []).map(normalizeExpenseRecord);
+
+        transactions = [...incomes, ...expenses]
+            .sort((a, b) => getCreatedTime(b) - getCreatedTime(a));
+
+        return transactions;
+    }
+
+    function normalizeUserSettings(settings = {}) {
+        return {
+            currency: settings.currency || DEFAULT_USER_SETTINGS.currency,
+            theme: settings.theme || DEFAULT_USER_SETTINGS.theme,
+            expenses_percentage: Number(settings.expenses_percentage ?? DEFAULT_USER_SETTINGS.expenses_percentage),
+            savings_percentage: Number(settings.savings_percentage ?? DEFAULT_USER_SETTINGS.savings_percentage),
+            emergency_percentage: Number(settings.emergency_percentage ?? DEFAULT_USER_SETTINGS.emergency_percentage),
+        };
+    }
+
+    function normalizeWalletBalances(balances = {}) {
+        return {
+            expenses_balance: Number(balances.expenses_balance || 0),
+            savings_balance: Number(balances.savings_balance || 0),
+            emergency_balance: Number(balances.emergency_balance || 0),
+            total_income: Number(balances.total_income || 0),
+            total_spent: Number(balances.total_spent || 0),
+        };
+    }
+
+    function normalizeIncomeRecord(row) {
+        return {
+            id: row.id,
+            type: 'income',
+            amount: Number(row.amount || 0),
+            description: row.note || '',
+            date: row.income_date,
+            createdAt: row.created_at,
+            expensesAmount: Number(row.expenses_amount || 0),
+            savingsAmount: Number(row.savings_amount || 0),
+            emergencyAmount: Number(row.emergency_amount || 0),
+        };
+    }
+
+    function normalizeExpenseRecord(row) {
+        return {
+            id: row.id,
+            type: 'expense',
+            amount: Number(row.amount || 0),
+            description: row.note || '',
+            category: row.category || 'food',
+            sourceWallet: row.source_wallet || 'expenses',
+            paymentMethod: row.payment_method || 'cash',
+            date: row.transaction_date,
+            createdAt: row.created_at,
+        };
+    }
+
+    function getCreatedTime(record) {
+        const value = record.createdAt || record.created_at || record.date;
+        const time = new Date(value).getTime();
+        return Number.isNaN(time) ? 0 : time;
+    }
+
     function generateId() {
         return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    }
+
+    function getCurrentUserId() {
+        return authUser && authUser.id ? authUser.id : null;
+    }
+
+    function requireFinancialUser() {
+        const userId = getCurrentUserId();
+        if (!userId) {
+            showToast('يرجى تسجيل الدخول أولاً');
+            throw new Error('Missing authenticated user');
+        }
+        return userId;
+    }
+
+    function getCurrencyDisplay(value = currency) {
+        return CURRENCY_LABELS[value] || value || 'د.ل';
     }
 
     function formatMoney(amount) {
@@ -299,7 +580,7 @@
     }
 
     function formatMoneyWithCurrency(amount) {
-        return formatMoney(amount) + ' ' + currency;
+        return formatMoney(amount) + ' ' + getCurrencyDisplay();
     }
 
     // ==========================================
@@ -335,6 +616,8 @@
         savingsAmount: $('#savings-amount'),
         expensesSplitAmount: $('#expenses-split-amount'),
         emergencyAmount: $('#emergency-amount'),
+        distributionSummary: $('#distribution-summary'),
+        editDistributionBtn: $('#edit-distribution-btn'),
         cashTotal: $('#cash-total'),
         cardTotal: $('#card-total'),
         recentTransactions: $('#recent-transactions'),
@@ -347,12 +630,14 @@
         expenseDate: $('#expense-date'),
         categoryLabels: $('#category-labels'),
         paymentToggle: $('#payment-toggle'),
+        sourceWalletToggle: $('#source-wallet-toggle'),
         addExpenseBtn: $('#add-expense-btn'),
 
         // Income Form
         incomeAmount: $('#income-amount'),
         incomeDesc: $('#income-desc'),
         incomeDate: $('#income-date'),
+        incomeSplitNote: $('#income-split-note'),
         addIncomeBtn: $('#add-income-btn'),
 
         // Analytics
@@ -393,6 +678,16 @@
         clearDataBtn: $('#clear-data-btn'),
         accountEmail: $('#account-email'),
         logoutBtn: $('#logout-btn'),
+
+        // Distribution modal
+        distributionModal: $('#distribution-modal'),
+        closeDistribution: $('#close-distribution'),
+        cancelDistribution: $('#cancel-distribution'),
+        saveDistributionBtn: $('#save-distribution-btn'),
+        distributionExpenses: $('#distribution-expenses'),
+        distributionSavings: $('#distribution-savings'),
+        distributionEmergency: $('#distribution-emergency'),
+        distributionError: $('#distribution-error'),
 
         // Delete modal
         deleteModal: $('#delete-modal'),
@@ -473,22 +768,32 @@
             if (session && session.user) {
                 authUser = session.user;
                 updateAccountUI(authUser);
+                await initializeFinancialData();
                 startAuthenticatedFlow();
             } else {
                 showAuthOnly();
                 updateAccountUI(null);
             }
 
-            supabaseClient.auth.onAuthStateChange((event, sessionState) => {
+            supabaseClient.auth.onAuthStateChange(async (event, sessionState) => {
                 if (sessionState && sessionState.user) {
                     authUser = sessionState.user;
                     updateAccountUI(authUser);
-                    startAuthenticatedFlow();
+                    try {
+                        await initializeFinancialData();
+                        startAuthenticatedFlow();
+                    } catch (error) {
+                        console.error('Financial data load failed:', error);
+                        showAuthOnly('تعذر تحميل البيانات المالية من Supabase.', 'error');
+                    }
                     return;
                 }
 
                 authUser = null;
                 appFlowStarted = false;
+                transactions = [];
+                walletBalances = { ...DEFAULT_WALLET_BALANCES };
+                userSettings = { ...DEFAULT_USER_SETTINGS };
                 updateAccountUI(null);
                 showAuthOnly(
                     event === 'SIGNED_OUT' ? 'تم تسجيل الخروج بنجاح.' : '',
@@ -621,6 +926,68 @@
         }
     }
 
+    function updateDistributionSummary() {
+        const text = `توزيع الدخل الحالي: ${userSettings.expenses_percentage}% مصروفات - ${userSettings.savings_percentage}% ادخار - ${userSettings.emergency_percentage}% طوارئ`;
+        if (dom.distributionSummary) {
+            dom.distributionSummary.textContent = text;
+        }
+        if (dom.incomeSplitNote) {
+            dom.incomeSplitNote.textContent = text;
+        }
+    }
+
+    function updateCurrencyBadges() {
+        document.querySelectorAll('.currency-badge').forEach((badge) => {
+            badge.textContent = getCurrencyDisplay();
+        });
+    }
+
+    function openDistributionModal() {
+        if (!dom.distributionModal) return;
+        dom.distributionExpenses.value = userSettings.expenses_percentage;
+        dom.distributionSavings.value = userSettings.savings_percentage;
+        dom.distributionEmergency.value = userSettings.emergency_percentage;
+        dom.distributionError.textContent = '';
+        dom.distributionModal.classList.add('active');
+    }
+
+    function closeDistributionModal() {
+        if (!dom.distributionModal) return;
+        dom.distributionModal.classList.remove('active');
+    }
+
+    async function handleSaveDistribution() {
+        const expensesPercentage = Number(dom.distributionExpenses.value);
+        const savingsPercentage = Number(dom.distributionSavings.value);
+        const emergencyPercentage = Number(dom.distributionEmergency.value);
+        const values = [expensesPercentage, savingsPercentage, emergencyPercentage];
+
+        const invalid = values.some((value) => Number.isNaN(value) || value < 0);
+        const total = expensesPercentage + savingsPercentage + emergencyPercentage;
+
+        if (invalid || total !== 100) {
+            dom.distributionError.textContent = 'يجب أن يكون مجموع النسب 100%';
+            return;
+        }
+
+        try {
+            dom.saveDistributionBtn.disabled = true;
+            await saveUserSettings({
+                ...userSettings,
+                expenses_percentage: expensesPercentage,
+                savings_percentage: savingsPercentage,
+                emergency_percentage: emergencyPercentage,
+            });
+            closeDistributionModal();
+            showToast('تم حفظ توزيع الدخل');
+        } catch (error) {
+            console.error('Failed to save distribution:', error);
+            dom.distributionError.textContent = 'تعذر حفظ النسب. حاول مرة أخرى.';
+        } finally {
+            dom.saveDistributionBtn.disabled = false;
+        }
+    }
+
     function updateAuthMode(mode, options = {}) {
         authMode = mode === 'signup' ? 'signup' : 'login';
 
@@ -731,11 +1098,7 @@
         }
 
         dom.app.classList.remove('hidden');
-
-        // مزامنة من السحابة عند بدء التشغيل بعد فتح القفل
-        if (isOnlineMode()) {
-            syncFromCloud();
-        }
+        updateHome();
     }
 
     function updateConnectionStatus() {
@@ -776,11 +1139,42 @@
             btn.classList.add('active');
         });
 
+        if (dom.sourceWalletToggle) {
+            dom.sourceWalletToggle.addEventListener('click', (e) => {
+                const btn = e.target.closest('.wallet-btn');
+                if (!btn) return;
+                dom.sourceWalletToggle.querySelectorAll('.wallet-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        }
+
         // Add expense
         dom.addExpenseBtn.addEventListener('click', addExpense);
 
         // Add income
         dom.addIncomeBtn.addEventListener('click', addIncome);
+
+        if (dom.editDistributionBtn) {
+            dom.editDistributionBtn.addEventListener('click', openDistributionModal);
+        }
+
+        if (dom.closeDistribution) {
+            dom.closeDistribution.addEventListener('click', closeDistributionModal);
+        }
+
+        if (dom.cancelDistribution) {
+            dom.cancelDistribution.addEventListener('click', closeDistributionModal);
+        }
+
+        if (dom.distributionModal) {
+            dom.distributionModal.addEventListener('click', (e) => {
+                if (e.target === dom.distributionModal) closeDistributionModal();
+            });
+        }
+
+        if (dom.saveDistributionBtn) {
+            dom.saveDistributionBtn.addEventListener('click', handleSaveDistribution);
+        }
 
         // Analytics month navigation
         dom.analyticsAllBtn.addEventListener('click', () => {
@@ -820,60 +1214,55 @@
             if (e.target === dom.settingsModal) dom.settingsModal.classList.remove('active');
         });
 
-        dom.currencySelect.addEventListener('change', () => {
+        dom.currencySelect.addEventListener('change', async () => {
             currency = dom.currencySelect.value;
             saveCurrency();
+            if (authUser) {
+                try {
+                    await saveUserSettings({ ...userSettings, currency });
+                } catch (error) {
+                    console.error('Failed to save currency:', error);
+                    showToast('تعذر حفظ العملة');
+                }
+            }
             updateHome();
             updateAnalytics();
         });
 
         if (dom.saveSheetUrlBtn) {
-            dom.saveSheetUrlBtn.addEventListener('click', async () => {
-                appsScriptUrl = dom.sheetUrlInput.value.trim();
-                saveSheetUrl();
-                updateConnectionStatus();
-                if (!appsScriptUrl) {
-                    showToast('تم حذف رابط Google Sheets');
-                    return;
-                }
-
-                showToast('تم حفظ الرابط، جارِ تحميل البيانات...');
-                const result = await syncFromCloud();
-                if (result.success) {
-                    showToast(`تم تحميل ${result.count} عملية من Google Sheets`);
-                }
+            dom.saveSheetUrlBtn.addEventListener('click', () => {
+                showToast('تم إيقاف Google Sheets. البيانات المالية محفوظة في Supabase الآن.');
             });
         }
 
         if (dom.cloudSyncBtn) {
-            dom.cloudSyncBtn.addEventListener('click', async () => {
-                if (!isOnlineMode()) {
-                    showToast('أضف رابط Google Sheets أولاً');
-                    return;
-                }
-
-                showToast('جارِ تحميل البيانات من Google Sheets...');
-                const result = await syncFromCloud();
-                if (result.success) {
-                    showToast(`تم تحميل ${result.count} عملية من Google Sheets`);
-                }
+            dom.cloudSyncBtn.addEventListener('click', () => {
+                showToast('تم إيقاف Google Sheets. البيانات المالية محفوظة في Supabase الآن.');
             });
         }
 
         dom.clearDataBtn.addEventListener('click', async () => {
             if (confirm('هل أنت متأكد من حذف جميع البيانات؟ لا يمكن التراجع عن هذا الإجراء.')) {
-                transactions = [];
-                incomeSplits = { savings: 0, expenses: 0, emergency: 0 };
-                saveTransactions();
-                saveIncomeSplits();
+                try {
+                    const userId = requireFinancialUser();
+                    const [incomeDelete, expenseDelete] = await Promise.all([
+                        supabaseClient.from('incomes').delete().eq('user_id', userId),
+                        supabaseClient.from('transactions').delete().eq('user_id', userId),
+                    ]);
 
-                // مسح من السحابة أيضاً
-                await pushToCloud('clearAll', {});
+                    if (incomeDelete.error) throw incomeDelete.error;
+                    if (expenseDelete.error) throw expenseDelete.error;
 
-                updateHome();
-                updateAnalytics();
-                dom.settingsModal.classList.remove('active');
-                showToast('تم مسح جميع البيانات');
+                    transactions = [];
+                    await saveWalletBalances({ ...DEFAULT_WALLET_BALANCES });
+                    updateHome();
+                    updateAnalytics();
+                    dom.settingsModal.classList.remove('active');
+                    showToast('تم مسح جميع البيانات');
+                } catch (error) {
+                    console.error('Failed to clear data:', error);
+                    showToast('تعذر مسح البيانات. حاول مرة أخرى');
+                }
             }
         });
 
@@ -907,12 +1296,7 @@
         const syncBtn = document.getElementById('sync-btn');
         if (syncBtn) {
             syncBtn.addEventListener('click', () => {
-                if (isOnlineMode()) {
-                    syncFromCloud();
-                    showToast('جارِ المزامنة...');
-                } else {
-                    showToast('⚠️ لم يتم إعداد الاتصال السحابي');
-                }
+                showToast('تم إيقاف Google Sheets. البيانات المالية محفوظة في Supabase الآن.');
             });
         }
     }
@@ -955,31 +1339,60 @@
 
         const activeCategory = dom.categoryLabels.querySelector('.label-btn.active');
         const activePayment = dom.paymentToggle.querySelector('.payment-btn.active');
+        const activeWallet = dom.sourceWalletToggle
+            ? dom.sourceWalletToggle.querySelector('.wallet-btn.active')
+            : null;
+        const sourceWallet = activeWallet ? activeWallet.dataset.wallet : 'expenses';
+        const currentBalance = Number(walletBalances[`${sourceWallet}_balance`] || 0);
 
-        const transaction = {
-            id: generateId(),
-            type: 'expense',
-            amount: amount,
-            description: dom.expenseDesc.value.trim(),
-            category: activeCategory ? activeCategory.dataset.category : 'food',
-            paymentMethod: activePayment ? activePayment.dataset.method : 'cash',
-            date: dom.expenseDate.value || new Date().toISOString().split('T')[0],
-            createdAt: Date.now(),
-        };
+        if (amount > currentBalance) {
+            showToast('الرصيد غير كافٍ في هذه الخانة');
+            return;
+        }
 
-        transactions.unshift(transaction);
-        saveTransactions();
-        updateHome();
+        const userId = requireFinancialUser();
+        const expenseDate = dom.expenseDate.value || new Date().toISOString().split('T')[0];
+        const category = activeCategory ? activeCategory.dataset.category : 'food';
+        const paymentMethod = activePayment ? activePayment.dataset.method : 'cash';
 
-        // حفظ في السحابة
-        pushToCloud('addTransaction', { transaction });
+        try {
+            dom.addExpenseBtn.disabled = true;
 
-        // Reset form
-        dom.expenseAmount.value = '';
-        dom.expenseDesc.value = '';
+            const { error } = await supabaseClient
+                .from('transactions')
+                .insert({
+                    user_id: userId,
+                    amount,
+                    category,
+                    source_wallet: sourceWallet,
+                    payment_method: paymentMethod,
+                    note: dom.expenseDesc.value.trim(),
+                    transaction_date: expenseDate,
+                });
 
-        showToast('تم إضافة المصروف بنجاح ✅');
-        setTimeout(() => navigateTo('home'), 500);
+            if (error) throw error;
+
+            const nextBalances = {
+                ...walletBalances,
+                [`${sourceWallet}_balance`]: currentBalance - amount,
+                total_spent: Number(walletBalances.total_spent || 0) + amount,
+            };
+
+            await saveWalletBalances(nextBalances);
+            await loadRecentRecords();
+            updateHome();
+
+            dom.expenseAmount.value = '';
+            dom.expenseDesc.value = '';
+
+            showToast('تمت إضافة المصروف بنجاح');
+            setTimeout(() => navigateTo('home'), 500);
+        } catch (error) {
+            console.error('Failed to add expense:', error);
+            showToast('تعذر إضافة المصروف. حاول مرة أخرى');
+        } finally {
+            dom.addExpenseBtn.disabled = false;
+        }
     }
 
     // ==========================================
@@ -992,69 +1405,124 @@
             return;
         }
 
-        const transaction = {
-            id: generateId(),
-            type: 'income',
-            amount: amount,
-            description: dom.incomeDesc.value.trim(),
-            date: dom.incomeDate.value || new Date().toISOString().split('T')[0],
-            createdAt: Date.now(),
-        };
+        const userId = requireFinancialUser();
+        const expensesAmount = amount * Number(userSettings.expenses_percentage || 0) / 100;
+        const savingsAmount = amount * Number(userSettings.savings_percentage || 0) / 100;
+        const emergencyAmount = amount * Number(userSettings.emergency_percentage || 0) / 100;
+        const incomeDate = dom.incomeDate.value || new Date().toISOString().split('T')[0];
 
-        transactions.unshift(transaction);
-        saveTransactions();
-        updateHome();
+        try {
+            dom.addIncomeBtn.disabled = true;
 
-        // حفظ في السحابة
-        pushToCloud('addTransaction', { transaction, splits: incomeSplits });
+            const { error } = await supabaseClient
+                .from('incomes')
+                .insert({
+                    user_id: userId,
+                    amount,
+                    note: dom.incomeDesc.value.trim(),
+                    income_date: incomeDate,
+                    expenses_amount: expensesAmount,
+                    savings_amount: savingsAmount,
+                    emergency_amount: emergencyAmount,
+                });
 
-        // Reset form
-        dom.incomeAmount.value = '';
-        dom.incomeDesc.value = '';
+            if (error) throw error;
 
-        showToast('تم إضافة الدخل بنجاح ✅');
-        setTimeout(() => navigateTo('home'), 500);
+            await saveWalletBalances({
+                expenses_balance: Number(walletBalances.expenses_balance || 0) + expensesAmount,
+                savings_balance: Number(walletBalances.savings_balance || 0) + savingsAmount,
+                emergency_balance: Number(walletBalances.emergency_balance || 0) + emergencyAmount,
+                total_income: Number(walletBalances.total_income || 0) + amount,
+                total_spent: Number(walletBalances.total_spent || 0),
+            });
+
+            await loadRecentRecords();
+            updateHome();
+
+            dom.incomeAmount.value = '';
+            dom.incomeDesc.value = '';
+
+            showToast('تمت إضافة الدخل وتوزيعه بنجاح');
+            setTimeout(() => navigateTo('home'), 500);
+        } catch (error) {
+            console.error('Failed to add income:', error);
+            showToast('تعذر إضافة الدخل. حاول مرة أخرى');
+        } finally {
+            dom.addIncomeBtn.disabled = false;
+        }
     }
 
     // ==========================================
     // DELETE TRANSACTION
     // ==========================================
     async function deleteTransaction(id) {
-        const txIndex = transactions.findIndex(t => t.id === id);
-        if (txIndex === -1) return;
+        const tx = transactions.find(t => t.id === id);
+        if (!tx) return;
 
-        transactions.splice(txIndex, 1);
-        saveTransactions();
-        updateHome();
+        try {
+            if (tx.type === 'income') {
+                const { error } = await supabaseClient
+                    .from('incomes')
+                    .delete()
+                    .eq('id', id)
+                    .eq('user_id', requireFinancialUser());
 
-        // حذف من السحابة
-        pushToCloud('deleteTransaction', { id, splits: incomeSplits });
+                if (error) throw error;
 
-        showToast('تم حذف المعاملة');
+                await saveWalletBalances({
+                    expenses_balance: Number(walletBalances.expenses_balance || 0) - Number(tx.expensesAmount || 0),
+                    savings_balance: Number(walletBalances.savings_balance || 0) - Number(tx.savingsAmount || 0),
+                    emergency_balance: Number(walletBalances.emergency_balance || 0) - Number(tx.emergencyAmount || 0),
+                    total_income: Number(walletBalances.total_income || 0) - Number(tx.amount || 0),
+                    total_spent: Number(walletBalances.total_spent || 0),
+                });
+            } else {
+                const { error } = await supabaseClient
+                    .from('transactions')
+                    .delete()
+                    .eq('id', id)
+                    .eq('user_id', requireFinancialUser());
+
+                if (error) throw error;
+
+                const sourceWallet = tx.sourceWallet || 'expenses';
+                await saveWalletBalances({
+                    ...walletBalances,
+                    [`${sourceWallet}_balance`]: Number(walletBalances[`${sourceWallet}_balance`] || 0) + Number(tx.amount || 0),
+                    total_spent: Math.max(0, Number(walletBalances.total_spent || 0) - Number(tx.amount || 0)),
+                });
+            }
+
+            await loadRecentRecords();
+            updateHome();
+            showToast('تم حذف المعاملة');
+        } catch (error) {
+            console.error('Failed to delete record:', error);
+            showToast('تعذر حذف المعاملة. حاول مرة أخرى');
+        }
     }
 
     // ==========================================
     // FIXED WALLET SPLITS
     // ==========================================
     function getTotals() {
-        const totalIncome = transactions
-            .filter(t => t.type === 'income')
-            .reduce((sum, t) => sum + t.amount, 0);
+        const totalIncome = Number(walletBalances.total_income || 0);
+        const totalExpenses = Number(walletBalances.total_spent || 0);
+        const balance =
+            Number(walletBalances.expenses_balance || 0) +
+            Number(walletBalances.savings_balance || 0) +
+            Number(walletBalances.emergency_balance || 0);
 
-        const totalExpenses = transactions
-            .filter(t => t.type === 'expense')
-            .reduce((sum, t) => sum + t.amount, 0);
-
-        return { totalIncome, totalExpenses, balance: totalIncome - totalExpenses };
+        return { totalIncome, totalExpenses, balance };
     }
 
     function calculateSplitsFromBalance(balance) {
         const available = Math.max(0, balance);
 
         return {
-            savings: available * FIXED_SPLIT_RATIOS.savings,
-            expenses: available * FIXED_SPLIT_RATIOS.expenses,
-            emergency: available * FIXED_SPLIT_RATIOS.emergency,
+            savings: available * Number(userSettings.savings_percentage || 0) / 100,
+            expenses: available * Number(userSettings.expenses_percentage || 0) / 100,
+            emergency: available * Number(userSettings.emergency_percentage || 0) / 100,
         };
     }
 
@@ -1076,19 +1544,17 @@
             .filter(t => t.type === 'expense' && t.paymentMethod === 'card')
             .reduce((sum, t) => sum + t.amount, 0);
 
-        incomeSplits = calculateSplitsFromBalance(balance);
-        saveIncomeSplitsLocal();
-
         dom.totalBalance.textContent = formatMoneyWithCurrency(balance);
         dom.totalIncome.textContent = formatMoneyWithCurrency(totalIncome);
         dom.totalExpenses.textContent = formatMoneyWithCurrency(totalExpenses);
 
-        dom.savingsAmount.textContent = formatMoneyWithCurrency(incomeSplits.savings);
-        dom.expensesSplitAmount.textContent = formatMoneyWithCurrency(incomeSplits.expenses);
-        dom.emergencyAmount.textContent = formatMoneyWithCurrency(incomeSplits.emergency);
+        dom.savingsAmount.textContent = formatMoneyWithCurrency(walletBalances.savings_balance);
+        dom.expensesSplitAmount.textContent = formatMoneyWithCurrency(walletBalances.expenses_balance);
+        dom.emergencyAmount.textContent = formatMoneyWithCurrency(walletBalances.emergency_balance);
 
         dom.cashTotal.textContent = formatMoneyWithCurrency(cashExpenses);
         dom.cardTotal.textContent = formatMoneyWithCurrency(cardExpenses);
+        updateDistributionSummary();
 
         renderRecentTransactions();
     }
@@ -1137,6 +1603,7 @@
             const cat = CATEGORIES[tx.category] || CATEGORIES.food;
             const paymentLabel = tx.paymentMethod === 'cash' ? 'كاش' : 'بطاقة';
             const paymentClass = tx.paymentMethod === 'cash' ? 'badge-cash' : 'badge-card';
+            const walletLabel = WALLET_LABELS[tx.sourceWallet] || WALLET_LABELS.expenses;
             const dateFormatted = formatDate(tx.date);
 
             div.innerHTML = `
@@ -1145,6 +1612,7 @@
                     <div class="transaction-category">
                         ${cat.label}
                         <span class="payment-badge ${paymentClass}">${paymentLabel}</span>
+                        <span class="payment-badge badge-wallet">${walletLabel}</span>
                     </div>
                     <div class="transaction-desc">${tx.description || 'بدون وصف'}</div>
                     <span class="transaction-date-text">${dateFormatted}</span>
@@ -1265,10 +1733,15 @@
             .reduce((sum, t) => sum + t.amount, 0);
 
         const monthBalance = monthIncome - monthExpenses;
-        const monthSplits = calculateSplitsFromBalance(monthBalance);
-        const monthSavings = monthSplits.savings;
-        const monthExpensesSplit = monthSplits.expenses;
-        const monthEmergency = monthSplits.emergency;
+        const monthSavings = scopedTransactions
+            .filter(t => t.type === 'income')
+            .reduce((sum, t) => sum + Number(t.savingsAmount || 0), 0);
+        const monthExpensesSplit = scopedTransactions
+            .filter(t => t.type === 'income')
+            .reduce((sum, t) => sum + Number(t.expensesAmount || 0), 0);
+        const monthEmergency = scopedTransactions
+            .filter(t => t.type === 'income')
+            .reduce((sum, t) => sum + Number(t.emergencyAmount || 0), 0);
 
         dom.aTotalIncome.textContent = formatMoneyWithCurrency(monthIncome);
         dom.aTotalExpenses.textContent = formatMoneyWithCurrency(monthExpenses);
@@ -1377,7 +1850,7 @@
 
         const total = savings + expenses + emergency;
         const data = total === 0 ? [1] : [savings, expenses, emergency];
-        const labels = total === 0 ? ['لا توجد بيانات'] : ['توفير', 'مصروفات', 'طوارئ'];
+        const labels = total === 0 ? ['لا توجد بيانات'] : ['ادخار', 'مصروفات', 'طوارئ'];
         const colors = total === 0 ? ['#2a2a3e'] : ['#60a5fa', '#34d399', '#fbbf24'];
 
         incomeDistChart = new Chart(ctx, {

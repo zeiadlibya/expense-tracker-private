@@ -160,32 +160,36 @@
                         </div>
                     </div>
 
-                    <!-- Income Split Cards -->
+                    <!-- Wallet Balance Cards -->
                     <div class="section-title">
-                        <h3>توزيع الدخل</h3>
+                        <h3>أرصدة المحافظ</h3>
                     </div>
                     <div class="split-cards">
                         <div class="split-card savings-card">
                             <div class="split-card-icon">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16"/><path d="M3 21h18"/><path d="M9 7h6"/><path d="M9 11h6"/><path d="M9 15h4"/></svg>
                             </div>
-                            <span class="split-card-label">التوفير</span>
+                            <span class="split-card-label">رصيد الادخار</span>
                             <span class="split-card-value" id="savings-amount">0.00</span>
                         </div>
                         <div class="split-card expenses-split-card">
                             <div class="split-card-icon">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
                             </div>
-                            <span class="split-card-label">المصروفات</span>
+                            <span class="split-card-label">رصيد المصروفات</span>
                             <span class="split-card-value" id="expenses-split-amount">0.00</span>
                         </div>
                         <div class="split-card emergency-card">
                             <div class="split-card-icon">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                             </div>
-                            <span class="split-card-label">الطوارئ</span>
+                            <span class="split-card-label">رصيد الطوارئ</span>
                             <span class="split-card-value" id="emergency-amount">0.00</span>
                         </div>
+                    </div>
+                    <div class="distribution-summary-card">
+                        <p id="distribution-summary">توزيع الدخل الحالي: 50% مصروفات - 30% ادخار - 20% طوارئ</p>
+                        <button id="edit-distribution-btn" type="button">تعديل توزيع الدخل</button>
                     </div>
 
                     <!-- Payment Method Totals -->
@@ -299,6 +303,16 @@
                             </div>
                         </div>
 
+                        <!-- Source Wallet -->
+                        <div class="form-group">
+                            <label class="form-label">مصدر المصروف</label>
+                            <div class="wallet-toggle" id="source-wallet-toggle">
+                                <button class="wallet-btn active" type="button" data-wallet="expenses">المصروفات</button>
+                                <button class="wallet-btn" type="button" data-wallet="savings">الادخار</button>
+                                <button class="wallet-btn" type="button" data-wallet="emergency">الطوارئ</button>
+                            </div>
+                        </div>
+
                         <!-- Date -->
                         <div class="form-group">
                             <label class="form-label" for="expense-date">التاريخ</label>
@@ -341,8 +355,8 @@
                             <input type="text" id="income-desc" class="text-input" placeholder="مثال: راتب، عمل حر...">
                         </div>
 
-                        <div class="auto-split-note">
-                            يتم توزيع الرصيد تلقائياً: 30% توفير، 50% مصروفات، 20% طوارئ.
+                        <div class="auto-split-note" id="income-split-note">
+                            يتم توزيع الدخل تلقائياً حسب النسب الحالية.
                         </div>
 
                         <!-- Date -->
@@ -432,7 +446,7 @@
                         <div class="income-dist-legend">
                             <div class="dist-item">
                                 <span class="dist-dot savings-bg"></span>
-                                <span>توفير</span>
+                                <span>ادخار</span>
                                 <span class="dist-value" id="a-savings">0.00</span>
                             </div>
                             <div class="dist-item">
@@ -514,7 +528,7 @@
                             <option value="€">يورو (€)</option>
                         </select>
                     </div>
-                    <div class="setting-cloud">
+                    <div class="setting-cloud hidden">
                         <label for="sheet-url-input">رابط Google Sheets Web App</label>
                         <input id="sheet-url-input" class="setting-input" type="url" placeholder="https://script.google.com/macros/s/.../exec">
                         <div class="connection-status offline" id="connection-status">وضع محلي. أضف رابط Web App لتفعيل الحفظ السحابي.</div>
@@ -526,6 +540,39 @@
                     <div class="setting-item danger-setting">
                         <span>حذف جميع البيانات</span>
                         <button class="danger-btn" id="clear-data-btn">مسح الكل</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Income Distribution Modal -->
+        <div class="modal-overlay" id="distribution-modal">
+            <div class="modal-card modal-card-small">
+                <div class="modal-header">
+                    <h3>تعديل توزيع الدخل</h3>
+                    <button class="modal-close" id="close-distribution" type="button">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="distribution-form">
+                        <label class="distribution-field">
+                            <span>المصروفات %</span>
+                            <input id="distribution-expenses" type="number" inputmode="numeric" min="0" max="100" step="1">
+                        </label>
+                        <label class="distribution-field">
+                            <span>الادخار %</span>
+                            <input id="distribution-savings" type="number" inputmode="numeric" min="0" max="100" step="1">
+                        </label>
+                        <label class="distribution-field">
+                            <span>الطوارئ %</span>
+                            <input id="distribution-emergency" type="number" inputmode="numeric" min="0" max="100" step="1">
+                        </label>
+                        <div id="distribution-error" class="distribution-error" aria-live="polite"></div>
+                        <div class="modal-actions">
+                            <button class="modal-btn cancel-btn" id="cancel-distribution" type="button">إلغاء</button>
+                            <button class="modal-btn save-distribution-btn" id="save-distribution-btn" type="button">حفظ</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -549,6 +596,6 @@
 
     </div>
 
-    <script src="app.js?v=9"></script>
+    <script src="app.js?v=10"></script>
 </body>
 </html>
