@@ -9,15 +9,15 @@
     // ==========================================
     // CONFIGURATION
     // ==========================================
-    const SUPABASE_URL = "https://gtqxewzvhxhfnumdsgyj.supabase.co/rest/v1/";
+    const SUPABASE_URL = "https://gtqxewzvhxhfnumdsgyj.supabase.co";
     const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_Go8b9K2xCi2aIybRvwrMSw_0etxTUsd";
 
     function hasSupabaseConfig() {
         return (
             SUPABASE_URL &&
             SUPABASE_PUBLISHABLE_KEY &&
-            SUPABASE_URL !== "https://gtqxewzvhxhfnumdsgyj.supabase.co/rest/v1/" &&
-            SUPABASE_PUBLISHABLE_KEY !== "sb_publishable_Go8b9K2xCi2aIybRvwrMSw_0etxTUsd"
+            SUPABASE_URL !== "YOUR_SUPABASE_URL" &&
+            SUPABASE_PUBLISHABLE_KEY !== "YOUR_SUPABASE_PUBLISHABLE_KEY"
         );
     }
 
