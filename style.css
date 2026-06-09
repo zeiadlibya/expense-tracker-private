@@ -220,6 +220,129 @@ button {
 }
 
 /* ============================================
+   AUTH SCREEN
+   ============================================ */
+.auth-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 9500;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-lg);
+    background:
+        radial-gradient(circle at 50% 10%, rgba(31, 131, 255, 0.18), transparent 36%),
+        var(--bg-primary);
+}
+
+.auth-card {
+    width: min(100%, 390px);
+    text-align: center;
+    background: rgba(26, 26, 46, 0.78);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    padding: var(--space-xl) var(--space-lg);
+    box-shadow: var(--shadow-lg);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+}
+
+.auth-heading {
+    margin: var(--space-md) 0 var(--space-lg);
+}
+
+.auth-heading h1 {
+    font-size: 1.55rem;
+    line-height: 1.2;
+    font-weight: 900;
+}
+
+.auth-heading p {
+    margin-top: var(--space-xs);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.auth-form {
+    display: grid;
+    gap: var(--space-md);
+    text-align: right;
+}
+
+.auth-field {
+    display: grid;
+    gap: var(--space-sm);
+}
+
+.auth-field span {
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.auth-field input {
+    width: 100%;
+    min-height: 54px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    padding: 0 var(--space-md);
+    direction: ltr;
+    text-align: left;
+    font: inherit;
+}
+
+.auth-field input:focus {
+    border-color: var(--accent-purple);
+    box-shadow: 0 0 0 4px var(--accent-purple-glow);
+}
+
+.auth-message {
+    min-height: 22px;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.auth-message.success {
+    color: var(--income-green);
+}
+
+.auth-message.error {
+    color: var(--expense-red);
+}
+
+.auth-primary-btn,
+.auth-secondary-btn,
+.logout-btn {
+    width: 100%;
+    min-height: 50px;
+    border-radius: var(--radius-md);
+    font-weight: 800;
+}
+
+.auth-primary-btn {
+    color: #fff;
+    background: linear-gradient(135deg, #1f83ff, #6d28d9);
+    box-shadow: 0 8px 24px rgba(109, 40, 217, 0.25);
+}
+
+.auth-secondary-btn {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid var(--border-color);
+}
+
+.auth-primary-btn:disabled,
+.auth-secondary-btn:disabled {
+    opacity: 0.65;
+    cursor: progress;
+}
+
+/* ============================================
    LOCK SCREEN
    ============================================ */
 .lock-screen {
@@ -1650,6 +1773,47 @@ button {
 
 .modal-body {
     padding: var(--space-lg);
+}
+
+.setting-account {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    margin-bottom: var(--space-sm);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+
+.account-label {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+#account-email {
+    display: block;
+    max-width: 210px;
+    overflow: hidden;
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: ltr;
+    text-align: left;
+}
+
+.logout-btn {
+    width: auto;
+    min-width: 108px;
+    min-height: 42px;
+    color: var(--expense-red);
+    background: var(--expense-red-bg);
+    border: 1px solid rgba(248, 113, 113, 0.2);
 }
 
 .setting-item {

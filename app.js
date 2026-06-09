@@ -9,6 +9,23 @@
     // ==========================================
     // CONFIGURATION
     // ==========================================
+    const SUPABASE_URL = "YOUR_SUPABASE_URL";
+    const SUPABASE_PUBLISHABLE_KEY = "YOUR_SUPABASE_PUBLISHABLE_KEY";
+
+    function hasSupabaseConfig() {
+        return (
+            SUPABASE_URL &&
+            SUPABASE_PUBLISHABLE_KEY &&
+            SUPABASE_URL !== https://gtqxewzvhxhfnumdsgyj.supabase.co/rest/v1/ &&
+            SUPABASE_PUBLISHABLE_KEY !== sb_publishable_Go8b9K2xCi2aIybRvwrMSw_0etxTUsd
+        );
+    }
+
+    const supabaseClient = (
+        window.supabase && hasSupabaseConfig()
+            ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+            : null
+    );
 
     // ==========================================
     // DATA LAYER
@@ -51,6 +68,8 @@
     let deleteTargetId = null;
     let isSyncing = false;
     let toastTimer = null;
+    let authUser = null;
+    let appFlowStarted = false;
 
     // Chart instances
     let categoryChart = null;
@@ -289,6 +308,13 @@
     const $$ = (sel) => document.querySelectorAll(sel);
 
     const dom = {
+        authScreen: $('#auth-screen'),
+        authForm: $('#auth-form'),
+        authEmail: $('#auth-email'),
+        authPassword: $('#auth-password'),
+        authLoginBtn: $('#auth-login-btn'),
+        authSignupBtn: $('#auth-signup-btn'),
+        authMessage: $('#auth-message'),
         splash: $('#splash-screen'),
         lockScreen: $('#lock-screen'),
         lockCard: $('.lock-card'),
@@ -362,6 +388,8 @@
         cloudSyncBtn: $('#cloud-sync-btn'),
         connectionStatus: $('#connection-status'),
         clearDataBtn: $('#clear-data-btn'),
+        accountEmail: $('#account-email'),
+        logoutBtn: $('#logout-btn'),
 
         // Delete modal
         deleteModal: $('#delete-modal'),
@@ -397,15 +425,229 @@
         // Bind events
         bindEvents();
         bindLockEvents();
+        bindAuthEvents();
 
         // Update all views
         updateHome();
 
-        // Show lock screen after splash
+        initAuth();
+    }
+
+    function bindAuthEvents() {
+        if (!dom.authForm || !dom.authSignupBtn || !dom.logoutBtn) return;
+
+        dom.authForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            signInWithEmail();
+        });
+
+        dom.authSignupBtn.addEventListener('click', () => {
+            signUpWithEmail();
+        });
+
+        dom.logoutBtn.addEventListener('click', () => {
+            signOutUser();
+        });
+    }
+
+    async function initAuth() {
+        if (!supabaseClient) {
+            showAuthOnly('أضف رابط Supabase والمفتاح العام في ملف app.js أولاً.', 'error');
+            updateAccountUI(null);
+            return;
+        }
+
+        try {
+            const { data, error } = await supabaseClient.auth.getSession();
+            if (error) throw error;
+
+            const session = data && data.session;
+            if (session && session.user) {
+                authUser = session.user;
+                updateAccountUI(authUser);
+                startAuthenticatedFlow();
+            } else {
+                showAuthOnly();
+                updateAccountUI(null);
+            }
+
+            supabaseClient.auth.onAuthStateChange((event, sessionState) => {
+                if (sessionState && sessionState.user) {
+                    authUser = sessionState.user;
+                    updateAccountUI(authUser);
+                    startAuthenticatedFlow();
+                    return;
+                }
+
+                authUser = null;
+                appFlowStarted = false;
+                updateAccountUI(null);
+                showAuthOnly(
+                    event === 'SIGNED_OUT' ? 'تم تسجيل الخروج بنجاح.' : '',
+                    event === 'SIGNED_OUT' ? 'success' : ''
+                );
+            });
+        } catch (error) {
+            console.error('Supabase auth init failed:', error);
+            showAuthOnly('تعذر الاتصال بـ Supabase. تأكد من الرابط والمفتاح العام.', 'error');
+            updateAccountUI(null);
+        }
+    }
+
+    async function signUpWithEmail() {
+        if (!supabaseClient || !validateAuthInputs()) return;
+
+        setAuthLoading(true);
+        setAuthMessage('');
+
+        try {
+            const { data, error } = await supabaseClient.auth.signUp({
+                email: dom.authEmail.value.trim(),
+                password: dom.authPassword.value,
+            });
+
+            if (error) throw error;
+
+            if (data && data.session && data.session.user) {
+                setAuthMessage('تم إنشاء الحساب وتسجيل الدخول بنجاح.', 'success');
+            } else {
+                setAuthMessage('تم إنشاء الحساب. تحقق من بريدك الإلكتروني إذا طلب Supabase التأكيد.', 'success');
+            }
+        } catch (error) {
+            setAuthMessage(translateAuthError(error), 'error');
+        } finally {
+            setAuthLoading(false);
+        }
+    }
+
+    async function signInWithEmail() {
+        if (!supabaseClient || !validateAuthInputs()) return;
+
+        setAuthLoading(true);
+        setAuthMessage('');
+
+        try {
+            const { error } = await supabaseClient.auth.signInWithPassword({
+                email: dom.authEmail.value.trim(),
+                password: dom.authPassword.value,
+            });
+
+            if (error) throw error;
+            setAuthMessage('تم تسجيل الدخول بنجاح.', 'success');
+        } catch (error) {
+            setAuthMessage(translateAuthError(error), 'error');
+        } finally {
+            setAuthLoading(false);
+        }
+    }
+
+    async function signOutUser() {
+        if (!supabaseClient) return;
+
+        try {
+            const { error } = await supabaseClient.auth.signOut();
+            if (error) throw error;
+        } catch (error) {
+            showToast('تعذر تسجيل الخروج. حاول مرة أخرى.');
+        }
+    }
+
+    function validateAuthInputs() {
+        const email = dom.authEmail ? dom.authEmail.value.trim() : '';
+        const password = dom.authPassword ? dom.authPassword.value : '';
+
+        if (!email || !password) {
+            setAuthMessage('أدخل البريد الإلكتروني وكلمة المرور.', 'error');
+            return false;
+        }
+
+        if (password.length < 6) {
+            setAuthMessage('كلمة المرور يجب أن تكون 6 أحرف أو أكثر.', 'error');
+            return false;
+        }
+
+        return true;
+    }
+
+    function showAuthOnly(message = '', type = '') {
+        if (dom.splash) dom.splash.classList.add('hidden');
+        if (dom.lockScreen) {
+            dom.lockScreen.classList.add('hidden');
+            dom.lockScreen.hidden = true;
+        }
+        if (dom.app) dom.app.classList.add('hidden');
+        if (dom.authScreen) {
+            dom.authScreen.classList.remove('hidden');
+            dom.authScreen.hidden = false;
+        }
+        setAuthMessage(message, type);
         setTimeout(() => {
-            dom.splash.classList.add('hidden');
+            if (dom.authEmail) dom.authEmail.focus();
+        }, 120);
+    }
+
+    function startAuthenticatedFlow() {
+        if (dom.authScreen) {
+            dom.authScreen.classList.add('hidden');
+            dom.authScreen.hidden = true;
+        }
+
+        if (appFlowStarted) return;
+        appFlowStarted = true;
+
+        if (dom.splash) dom.splash.classList.remove('hidden');
+
+        setTimeout(() => {
+            if (dom.splash) dom.splash.classList.add('hidden');
             showLockScreen();
-        }, 1500);
+        }, 700);
+    }
+
+    function updateAccountUI(user) {
+        if (!dom.accountEmail) return;
+
+        dom.accountEmail.textContent = user && user.email ? user.email : 'غير مسجل';
+        if (dom.logoutBtn) {
+            dom.logoutBtn.hidden = !user;
+        }
+    }
+
+    function setAuthLoading(isLoading) {
+        [dom.authLoginBtn, dom.authSignupBtn].forEach((btn) => {
+            if (!btn) return;
+            btn.disabled = isLoading;
+        });
+
+        if (dom.authLoginBtn) {
+            dom.authLoginBtn.textContent = isLoading ? 'جارِ المعالجة...' : 'تسجيل الدخول';
+        }
+    }
+
+    function setAuthMessage(message, type = '') {
+        if (!dom.authMessage) return;
+
+        dom.authMessage.textContent = message || '';
+        dom.authMessage.classList.remove('success', 'error');
+        if (type) dom.authMessage.classList.add(type);
+    }
+
+    function translateAuthError(error) {
+        const message = error && error.message ? error.message : '';
+        const normalized = message.toLowerCase();
+
+        if (normalized.includes('invalid login credentials')) {
+            return 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
+        }
+
+        if (normalized.includes('email not confirmed')) {
+            return 'يرجى تأكيد البريد الإلكتروني قبل تسجيل الدخول.';
+        }
+
+        if (normalized.includes('already registered') || normalized.includes('user already registered')) {
+            return 'هذا البريد الإلكتروني مسجل بالفعل.';
+        }
+
+        return 'حدث خطأ في تسجيل الدخول. تأكد من البيانات وحاول مرة أخرى.';
     }
 
     function bindLockEvents() {

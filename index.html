@@ -14,10 +14,40 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- Supabase Authentication -->
+    <div id="auth-screen" class="auth-screen hidden" aria-label="تسجيل الدخول إلى Cashgo">
+        <div class="auth-card">
+            <span class="brand-mark brand-mark-large" aria-hidden="true">
+                <svg viewBox="0 0 120 120" focusable="false">
+                    <path class="cashgo-symbol-main" d="M77 36H54c-16 0-26 10-26 25s10 25 27 25h25V72H55c-8 0-13-5-13-12s5-12 13-12h22V36Z"/>
+                    <path class="cashgo-symbol-shade" d="M50 36v17h14V36H50Z"/>
+                </svg>
+            </span>
+            <div class="auth-heading">
+                <h1>Cashgo</h1>
+                <p>إدارة مصروفاتك اليومية بسهولة</p>
+            </div>
+            <form id="auth-form" class="auth-form">
+                <label class="auth-field">
+                    <span>البريد الإلكتروني</span>
+                    <input id="auth-email" type="email" inputmode="email" autocomplete="email" placeholder="name@example.com" required>
+                </label>
+                <label class="auth-field">
+                    <span>كلمة المرور</span>
+                    <input id="auth-password" type="password" autocomplete="current-password" minlength="6" placeholder="••••••••" required>
+                </label>
+                <div id="auth-message" class="auth-message" aria-live="polite"></div>
+                <button id="auth-login-btn" class="auth-primary-btn" type="submit">تسجيل الدخول</button>
+                <button id="auth-signup-btn" class="auth-secondary-btn" type="button">إنشاء حساب</button>
+            </form>
+        </div>
+    </div>
+
     <!-- Splash / Loading -->
     <div id="splash-screen" class="splash-screen">
         <div class="splash-content">
@@ -467,6 +497,13 @@
                     </button>
                 </div>
                 <div class="modal-body">
+                    <div class="setting-account" id="account-panel">
+                        <div>
+                            <span class="account-label">الحساب</span>
+                            <strong id="account-email">غير مسجل</strong>
+                        </div>
+                        <button class="logout-btn" id="logout-btn" type="button">تسجيل الخروج</button>
+                    </div>
                     <div class="setting-item">
                         <span>العملة</span>
                         <select id="currency-select" class="setting-select">
