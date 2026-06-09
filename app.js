@@ -36,7 +36,6 @@
         CURRENCY: 'wallet_currency',
         SHEET_URL: 'wallet_sheet_url',
     };
-    const APP_PIN = '2580';
     const FIXED_SPLIT_RATIOS = {
         savings: 0.30,
         expenses: 0.50,
@@ -601,11 +600,6 @@
         authSignupBtn: $('#auth-signup-btn'),
         authMessage: $('#auth-message'),
         splash: $('#splash-screen'),
-        lockScreen: $('#lock-screen'),
-        lockCard: $('.lock-card'),
-        lockForm: $('#lock-form'),
-        lockPin: $('#lock-pin'),
-        lockError: $('#lock-error'),
         app: $('#app'),
         pageTitle: $('#page-title'),
         headerDate: $('#header-date'),
@@ -723,7 +717,6 @@
 
         // Bind events
         bindEvents();
-        bindLockEvents();
         bindAuthEvents();
 
         // Update all views
@@ -920,10 +913,6 @@
     function showAuthOnly(message = '', type = '') {
         updateAuthMode('login', { keepMessage: true });
         if (dom.splash) dom.splash.classList.add('hidden');
-        if (dom.lockScreen) {
-            dom.lockScreen.classList.add('hidden');
-            dom.lockScreen.hidden = true;
-        }
         if (dom.app) dom.app.classList.add('hidden');
         if (dom.authScreen) {
             dom.authScreen.classList.remove('hidden');
@@ -948,7 +937,7 @@
 
         setTimeout(() => {
             if (dom.splash) dom.splash.classList.add('hidden');
-            showLockScreen();
+            unlockApp();
         }, 700);
     }
 
@@ -1090,48 +1079,7 @@
         return 'حدث خطأ في تسجيل الدخول. تأكد من البيانات وحاول مرة أخرى.';
     }
 
-    function bindLockEvents() {
-        if (!dom.lockForm || !dom.lockPin) return;
-
-        dom.lockPin.addEventListener('input', () => {
-            dom.lockPin.value = dom.lockPin.value.replace(/\D/g, '').slice(0, 4);
-            dom.lockError.textContent = '';
-        });
-
-        dom.lockForm.addEventListener('submit', (event) => {
-            event.preventDefault();
-
-            if (dom.lockPin.value === APP_PIN) {
-                unlockApp();
-                return;
-            }
-
-            dom.lockPin.value = '';
-            dom.lockError.textContent = 'كلمة السر غير صحيحة';
-            shakeElement(dom.lockCard || dom.lockPin);
-            dom.lockPin.focus();
-        });
-    }
-
-    function showLockScreen() {
-        if (!dom.lockScreen || !dom.lockPin) {
-            unlockApp();
-            return;
-        }
-
-        dom.lockScreen.classList.remove('hidden');
-        dom.lockScreen.hidden = false;
-        dom.lockPin.value = '';
-        dom.lockError.textContent = '';
-        setTimeout(() => dom.lockPin.focus(), 120);
-    }
-
     function unlockApp() {
-        if (dom.lockScreen) {
-            dom.lockScreen.classList.add('hidden');
-            dom.lockScreen.hidden = true;
-        }
-
         dom.app.classList.remove('hidden');
         updateHome();
     }

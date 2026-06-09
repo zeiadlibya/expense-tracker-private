@@ -67,35 +67,6 @@
         </div>
     </div>
 
-    <!-- Lock Screen -->
-    <div id="lock-screen" class="lock-screen hidden" aria-label="قفل التطبيق">
-        <div class="lock-card">
-            <span class="brand-mark brand-mark-large" aria-hidden="true">
-                <svg viewBox="0 0 120 120" focusable="false">
-                    <path class="cashgo-symbol-main" d="M77 36H54c-16 0-26 10-26 25s10 25 27 25h25V72H55c-8 0-13-5-13-12s5-12 13-12h22V36Z"/>
-                    <path class="cashgo-symbol-shade" d="M50 36v17h14V36H50Z"/>
-                </svg>
-            </span>
-            <h2>Cashgo</h2>
-            <p>أدخل كلمة السر لفتح التطبيق</p>
-            <form id="lock-form" class="lock-form">
-                <input
-                    id="lock-pin"
-                    class="lock-input"
-                    type="password"
-                    inputmode="numeric"
-                    pattern="[0-9]*"
-                    autocomplete="off"
-                    maxlength="4"
-                    placeholder="••••"
-                    aria-label="كلمة السر"
-                >
-                <button class="lock-submit" type="submit">فتح</button>
-            </form>
-            <div id="lock-error" class="lock-error" aria-live="polite"></div>
-        </div>
-    </div>
-
     <!-- Main App -->
     <div id="app" class="app hidden">
         <!-- Header -->
@@ -596,6 +567,6 @@
 
     </div>
 
-    <script src="app.js?v=11"></script>
+    <script src="app.js?v=12"></script>
 </body>
 </html>
