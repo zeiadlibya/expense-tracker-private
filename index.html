@@ -16,7 +16,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=18">
+    <link rel="stylesheet" href="style.css?v=19">
 </head>
 <body>
     <!-- Supabase Authentication -->
@@ -421,6 +421,12 @@
                             <button class="record-filter-btn" type="button" data-filter="lastMonth">الشهر الماضي</button>
                             <button class="record-filter-btn" type="button" data-filter="custom">فترة مخصصة</button>
                         </div>
+                        <div class="record-type-tabs" id="record-type-tabs">
+                            <button class="record-type-btn active" type="button" data-type="all">الكل</button>
+                            <button class="record-type-btn" type="button" data-type="income">الدخل</button>
+                            <button class="record-type-btn" type="button" data-type="expense">المصروفات</button>
+                            <button class="record-type-btn" type="button" data-type="transfer">التحويلات</button>
+                        </div>
                         <div class="custom-filter-row hidden" id="custom-filter-row">
                             <input id="filter-from-date" class="text-input date-input" type="date">
                             <input id="filter-to-date" class="text-input date-input" type="date">
@@ -441,6 +447,10 @@
                             <div>
                                 <span>أكثر تصنيف</span>
                                 <strong id="top-category">لا يوجد</strong>
+                            </div>
+                            <div>
+                                <span>عدد العمليات</span>
+                                <strong id="period-count">0</strong>
                             </div>
                         </div>
                         <div class="transactions-list analytics-records-list" id="analytics-records-list"></div>
@@ -566,6 +576,10 @@
                             <option value="€">يورو (€)</option>
                         </select>
                     </div>
+                    <div class="setting-item">
+                        <span>إعلانات الصفحة الرئيسية</span>
+                        <button class="setting-admin-btn" id="open-banner-admin-btn" type="button">إدارة البنرات</button>
+                    </div>
                     <div class="setting-cloud hidden">
                         <label for="sheet-url-input">رابط Google Sheets Web App</label>
                         <input id="sheet-url-input" class="setting-input" type="url" placeholder="https://script.google.com/macros/s/.../exec">
@@ -579,6 +593,51 @@
                         <span>حذف جميع البيانات</span>
                         <button class="danger-btn" id="clear-data-btn">مسح الكل</button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Banner Admin Modal -->
+        <div class="modal-overlay" id="banner-admin-modal">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3>إدارة البنرات</h3>
+                    <button class="modal-close" id="close-banner-admin" type="button">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="banner-admin-form">
+                        <input id="banner-title-input" class="setting-input" type="text" placeholder="عنوان البنر">
+                        <input id="banner-image-input" class="setting-input" type="url" placeholder="رابط الصورة">
+                        <input id="banner-target-input" class="setting-input" type="url" placeholder="رابط عند الضغط">
+                        <div class="banner-admin-grid">
+                            <label>
+                                <span>الترتيب</span>
+                                <input id="banner-order-input" type="number" inputmode="numeric" min="1" value="1">
+                            </label>
+                            <label class="banner-active-row">
+                                <span>نشط</span>
+                                <input id="banner-active-input" type="checkbox" checked>
+                            </label>
+                        </div>
+                        <div class="banner-admin-grid">
+                            <label>
+                                <span>يبدأ</span>
+                                <input id="banner-start-input" type="datetime-local">
+                            </label>
+                            <label>
+                                <span>ينتهي</span>
+                                <input id="banner-end-input" type="datetime-local">
+                            </label>
+                        </div>
+                        <div id="banner-admin-message" class="distribution-error" aria-live="polite"></div>
+                        <div class="modal-actions">
+                            <button class="modal-btn cancel-btn" id="reset-banner-form-btn" type="button">تفريغ</button>
+                            <button class="modal-btn save-distribution-btn" id="save-banner-btn" type="button">حفظ البنر</button>
+                        </div>
+                    </div>
+                    <div class="banner-admin-list" id="banner-admin-list"></div>
                 </div>
             </div>
         </div>
@@ -730,6 +789,6 @@
 
     </div>
 
-    <script src="app.js?v=18"></script>
+    <script src="app.js?v=19"></script>
 </body>
 </html>

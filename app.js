@@ -101,7 +101,10 @@
     let authStateListenerAttached = false;
     let recordFilterMode = 'month';
     let editTargetId = null;
+    let recordTypeFilter = 'all';
     let banners = [];
+    let bannerAdminItems = [];
+    let editingBannerId = null;
     let activeBannerIndex = 0;
     let bannerAutoTimer = null;
     let viewedBannerIds = new Set();
@@ -750,6 +753,172 @@
         }
     }
 
+    function setBannerAdminMessage(message = '', isError = true) {
+        if (!dom.bannerAdminMessage) return;
+        dom.bannerAdminMessage.textContent = message;
+        dom.bannerAdminMessage.classList.toggle('success-message', !isError && Boolean(message));
+    }
+
+    function formatDateTimeInput(value) {
+        if (!value) return '';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+        return localDate.toISOString().slice(0, 16);
+    }
+
+    function readDateTimeInput(input) {
+        if (!input || !input.value) return null;
+        const date = new Date(input.value);
+        return Number.isNaN(date.getTime()) ? null : date.toISOString();
+    }
+
+    async function openBannerAdminModal() {
+        if (!dom.bannerAdminModal) return;
+        dom.settingsModal.classList.remove('active');
+        dom.bannerAdminModal.classList.add('active');
+        resetBannerAdminForm();
+        await loadBannerAdminItems();
+    }
+
+    function closeBannerAdminModal() {
+        if (!dom.bannerAdminModal) return;
+        dom.bannerAdminModal.classList.remove('active');
+        resetBannerAdminForm();
+    }
+
+    function resetBannerAdminForm() {
+        editingBannerId = null;
+        if (dom.bannerTitleInput) dom.bannerTitleInput.value = '';
+        if (dom.bannerImageInput) dom.bannerImageInput.value = '';
+        if (dom.bannerTargetInput) dom.bannerTargetInput.value = '';
+        if (dom.bannerOrderInput) dom.bannerOrderInput.value = '1';
+        if (dom.bannerActiveInput) dom.bannerActiveInput.checked = true;
+        if (dom.bannerStartInput) dom.bannerStartInput.value = '';
+        if (dom.bannerEndInput) dom.bannerEndInput.value = '';
+        if (dom.saveBannerBtn) dom.saveBannerBtn.textContent = 'حفظ البنر';
+        setBannerAdminMessage('');
+    }
+
+    async function loadBannerAdminItems() {
+        if (!supabaseClient || !authUser || !dom.bannerAdminList) return;
+
+        dom.bannerAdminList.innerHTML = '<div class="banner-admin-empty">جاري تحميل البنرات...</div>';
+
+        try {
+            const { data, error } = await supabaseClient
+                .from('banners')
+                .select('id, title, image_url, target_url, sort_order, is_active, starts_at, ends_at, created_at')
+                .order('sort_order', { ascending: true });
+
+            if (error) throw error;
+            bannerAdminItems = data || [];
+            renderBannerAdminList();
+        } catch (error) {
+            console.warn('Banner admin loading failed:', error);
+            bannerAdminItems = [];
+            dom.bannerAdminList.innerHTML = '<div class="banner-admin-empty">تعذر تحميل البنرات. تأكد من صلاحيات Supabase.</div>';
+        }
+    }
+
+    function renderBannerAdminList() {
+        if (!dom.bannerAdminList) return;
+
+        if (!bannerAdminItems.length) {
+            dom.bannerAdminList.innerHTML = '<div class="banner-admin-empty">لا توجد بنرات بعد</div>';
+            return;
+        }
+
+        dom.bannerAdminList.innerHTML = bannerAdminItems.map((banner) => `
+            <div class="banner-admin-item" data-id="${escapeHTML(banner.id)}">
+                <img src="${escapeHTML(banner.image_url || '')}" alt="${escapeHTML(banner.title || 'بنر')}" loading="lazy">
+                <div class="banner-admin-info">
+                    <strong>${escapeHTML(banner.title || 'بدون عنوان')}</strong>
+                    <span>${banner.is_active ? 'نشط' : 'متوقف'} · ترتيب ${Number(banner.sort_order || 0)}</span>
+                </div>
+                <div class="banner-admin-actions">
+                    <button type="button" data-action="edit">تعديل</button>
+                    <button type="button" data-action="delete">حذف</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async function saveBannerAdminItem() {
+        if (!supabaseClient || !authUser) return;
+
+        const title = dom.bannerTitleInput?.value.trim();
+        const imageUrl = dom.bannerImageInput?.value.trim();
+        const targetUrl = dom.bannerTargetInput?.value.trim();
+        const sortOrder = Math.max(1, Number(dom.bannerOrderInput?.value || 1));
+
+        if (!title || !imageUrl || !targetUrl) {
+            setBannerAdminMessage('اكتب العنوان ورابط الصورة ورابط الضغط');
+            return;
+        }
+
+        const payload = {
+            title,
+            image_url: imageUrl,
+            target_url: targetUrl,
+            sort_order: sortOrder,
+            is_active: Boolean(dom.bannerActiveInput?.checked),
+            starts_at: readDateTimeInput(dom.bannerStartInput),
+            ends_at: readDateTimeInput(dom.bannerEndInput),
+            updated_at: new Date().toISOString(),
+        };
+
+        try {
+            const request = editingBannerId
+                ? supabaseClient.from('banners').update(payload).eq('id', editingBannerId)
+                : supabaseClient.from('banners').insert(payload);
+            const { error } = await request;
+            if (error) throw error;
+
+            resetBannerAdminForm();
+            setBannerAdminMessage('تم حفظ البنر بنجاح', false);
+            await loadBannerAdminItems();
+            await loadActiveBanners();
+        } catch (error) {
+            console.warn('Banner save failed:', error);
+            setBannerAdminMessage('تعذر حفظ البنر. تأكد من صلاحيات Supabase');
+        }
+    }
+
+    function fillBannerAdminForm(banner) {
+        editingBannerId = banner.id;
+        dom.bannerTitleInput.value = banner.title || '';
+        dom.bannerImageInput.value = banner.image_url || '';
+        dom.bannerTargetInput.value = banner.target_url || '';
+        dom.bannerOrderInput.value = Number(banner.sort_order || 1);
+        dom.bannerActiveInput.checked = Boolean(banner.is_active);
+        dom.bannerStartInput.value = formatDateTimeInput(banner.starts_at);
+        dom.bannerEndInput.value = formatDateTimeInput(banner.ends_at);
+        dom.saveBannerBtn.textContent = 'تحديث البنر';
+        setBannerAdminMessage('');
+    }
+
+    async function deleteBannerAdminItem(bannerId) {
+        if (!bannerId || !supabaseClient) return;
+        if (!confirm('هل تريد حذف هذا البنر؟')) return;
+
+        try {
+            const { error } = await supabaseClient
+                .from('banners')
+                .delete()
+                .eq('id', bannerId);
+
+            if (error) throw error;
+            showToast('تم حذف البنر');
+            resetBannerAdminForm();
+            await loadBannerAdminItems();
+            await loadActiveBanners();
+        } catch (error) {
+            console.warn('Banner delete failed:', error);
+            setBannerAdminMessage('تعذر حذف البنر. تأكد من صلاحيات Supabase');
+        }
+    }
+
     function escapeHTML(value) {
         return String(value || '')
             .replace(/&/g, '&amp;')
@@ -936,6 +1105,7 @@
         aEmergency: $('#a-emergency'),
         categoryLegend: $('#category-legend'),
         recordFilterTabs: $('#record-filter-tabs'),
+        recordTypeTabs: $('#record-type-tabs'),
         customFilterRow: $('#custom-filter-row'),
         filterFromDate: $('#filter-from-date'),
         filterToDate: $('#filter-to-date'),
@@ -943,6 +1113,7 @@
         periodExpenses: $('#period-expenses'),
         periodNet: $('#period-net'),
         topCategory: $('#top-category'),
+        periodCount: $('#period-count'),
         analyticsRecordsList: $('#analytics-records-list'),
 
         // Navigation
@@ -966,6 +1137,22 @@
         clearDataBtn: $('#clear-data-btn'),
         accountEmail: $('#account-email'),
         logoutBtn: $('#logout-btn'),
+        openBannerAdminBtn: $('#open-banner-admin-btn'),
+
+        // Banner admin modal
+        bannerAdminModal: $('#banner-admin-modal'),
+        closeBannerAdmin: $('#close-banner-admin'),
+        bannerTitleInput: $('#banner-title-input'),
+        bannerImageInput: $('#banner-image-input'),
+        bannerTargetInput: $('#banner-target-input'),
+        bannerOrderInput: $('#banner-order-input'),
+        bannerActiveInput: $('#banner-active-input'),
+        bannerStartInput: $('#banner-start-input'),
+        bannerEndInput: $('#banner-end-input'),
+        bannerAdminMessage: $('#banner-admin-message'),
+        bannerAdminList: $('#banner-admin-list'),
+        resetBannerFormBtn: $('#reset-banner-form-btn'),
+        saveBannerBtn: $('#save-banner-btn'),
 
         // Distribution modal
         distributionModal: $('#distribution-modal'),
@@ -1910,6 +2097,15 @@
             });
         }
 
+        if (dom.recordTypeTabs) {
+            dom.recordTypeTabs.addEventListener('click', (event) => {
+                const btn = event.target.closest('.record-type-btn');
+                if (!btn) return;
+                recordTypeFilter = btn.dataset.type || 'all';
+                updateAnalytics();
+            });
+        }
+
         [dom.filterFromDate, dom.filterToDate].forEach((input) => {
             if (!input) return;
             input.addEventListener('change', () => {
@@ -1949,6 +2145,45 @@
         if (dom.cloudSyncBtn) {
             dom.cloudSyncBtn.addEventListener('click', () => {
                 showToast('تم إيقاف Google Sheets. البيانات المالية محفوظة في Supabase الآن.');
+            });
+        }
+
+        if (dom.openBannerAdminBtn) {
+            dom.openBannerAdminBtn.addEventListener('click', openBannerAdminModal);
+        }
+
+        if (dom.closeBannerAdmin) {
+            dom.closeBannerAdmin.addEventListener('click', closeBannerAdminModal);
+        }
+
+        if (dom.bannerAdminModal) {
+            dom.bannerAdminModal.addEventListener('click', (event) => {
+                if (event.target === dom.bannerAdminModal) closeBannerAdminModal();
+            });
+        }
+
+        if (dom.resetBannerFormBtn) {
+            dom.resetBannerFormBtn.addEventListener('click', resetBannerAdminForm);
+        }
+
+        if (dom.saveBannerBtn) {
+            dom.saveBannerBtn.addEventListener('click', saveBannerAdminItem);
+        }
+
+        if (dom.bannerAdminList) {
+            dom.bannerAdminList.addEventListener('click', (event) => {
+                const actionBtn = event.target.closest('button[data-action]');
+                const item = event.target.closest('.banner-admin-item');
+                if (!actionBtn || !item) return;
+
+                const banner = bannerAdminItems.find((entry) => entry.id === item.dataset.id);
+                if (!banner) return;
+
+                if (actionBtn.dataset.action === 'edit') {
+                    fillBannerAdminForm(banner);
+                } else if (actionBtn.dataset.action === 'delete') {
+                    deleteBannerAdminItem(banner.id);
+                }
             });
         }
 
@@ -2552,6 +2787,7 @@
     function getFilteredRecords() {
         return transactions
             .filter(isRecordInFilter)
+            .filter((record) => recordTypeFilter === 'all' || record.type === recordTypeFilter)
             .sort((a, b) => getCreatedTime(b) - getCreatedTime(a));
     }
 
@@ -2617,6 +2853,12 @@
             btn.classList.toggle('active', btn.dataset.filter === recordFilterMode);
         });
 
+        if (dom.recordTypeTabs) {
+            dom.recordTypeTabs.querySelectorAll('.record-type-btn').forEach((btn) => {
+                btn.classList.toggle('active', btn.dataset.type === recordTypeFilter);
+            });
+        }
+
         if (dom.customFilterRow) {
             dom.customFilterRow.classList.toggle('hidden', recordFilterMode !== 'custom');
         }
@@ -2643,6 +2885,9 @@
         dom.topCategory.textContent = topCategoryKey
             ? `${CATEGORIES[topCategoryKey]?.label || topCategoryKey} (${formatMoney(categoryTotals[topCategoryKey])})`
             : 'لا يوجد';
+        if (dom.periodCount) {
+            dom.periodCount.textContent = String(records.length);
+        }
 
         if (records.length === 0) {
             dom.analyticsRecordsList.innerHTML = '';

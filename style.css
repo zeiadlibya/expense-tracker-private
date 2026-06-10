@@ -894,11 +894,25 @@ button {
         grid-template-columns: 1fr 1fr;
     }
 
-    .record-filter-tabs {
+    .record-filter-tabs,
+    .record-type-tabs {
         grid-template-columns: 1fr 1fr;
     }
 
     .monthly-summary {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .banner-admin-grid,
+    .banner-admin-item {
+        grid-template-columns: 1fr;
+    }
+
+    .banner-admin-item img {
+        width: 100%;
+    }
+
+    .banner-admin-actions {
         grid-template-columns: 1fr 1fr;
     }
 }
@@ -1724,7 +1738,15 @@ button {
     margin-bottom: var(--space-md);
 }
 
-.record-filter-btn {
+.record-type-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+}
+
+.record-filter-btn,
+.record-type-btn {
     min-height: 38px;
     padding: 0 var(--space-sm);
     border: 1px solid var(--border-color);
@@ -1735,7 +1757,8 @@ button {
     font-weight: 800;
 }
 
-.record-filter-btn.active {
+.record-filter-btn.active,
+.record-type-btn.active {
     border-color: var(--accent-purple);
     background: var(--accent-purple-glow);
     color: var(--accent-purple-light);
@@ -1750,7 +1773,7 @@ button {
 
 .monthly-summary {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: var(--space-sm);
     margin-bottom: var(--space-md);
 }
@@ -2248,6 +2271,148 @@ button {
     color: #fff;
 }
 
+.setting-admin-btn {
+    background: var(--accent-purple-glow);
+    color: var(--accent-purple-light);
+    padding: var(--space-sm) var(--space-md);
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    font-weight: 800;
+}
+
+.setting-admin-btn:hover {
+    background: rgba(139, 92, 246, 0.22);
+}
+
+.banner-admin-form {
+    display: grid;
+    gap: var(--space-md);
+}
+
+.banner-admin-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-sm);
+}
+
+.banner-admin-grid label {
+    display: grid;
+    gap: var(--space-xs);
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.banner-admin-grid input[type="number"],
+.banner-admin-grid input[type="datetime-local"] {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    padding: 0 var(--space-sm);
+    font: inherit;
+}
+
+.banner-active-row {
+    align-items: center;
+    grid-template-columns: 1fr auto;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0 var(--space-md);
+    min-height: 44px;
+}
+
+.banner-active-row input {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--accent-purple);
+}
+
+.success-message {
+    color: var(--income-green);
+}
+
+.banner-admin-list {
+    display: grid;
+    gap: var(--space-sm);
+    margin-top: var(--space-lg);
+}
+
+.banner-admin-empty {
+    padding: var(--space-lg);
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    text-align: center;
+    font-size: 0.82rem;
+}
+
+.banner-admin-item {
+    display: grid;
+    grid-template-columns: 72px 1fr auto;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+}
+
+.banner-admin-item img {
+    width: 72px;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+}
+
+.banner-admin-info {
+    min-width: 0;
+}
+
+.banner-admin-info strong,
+.banner-admin-info span {
+    display: block;
+}
+
+.banner-admin-info strong {
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.banner-admin-info span {
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    margin-top: 3px;
+}
+
+.banner-admin-actions {
+    display: grid;
+    gap: var(--space-xs);
+}
+
+.banner-admin-actions button {
+    min-width: 58px;
+    min-height: 32px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.banner-admin-actions button:hover {
+    color: var(--text-primary);
+    background: var(--bg-card-hover);
+}
+
 .delete-confirm-text {
     font-size: 0.9rem;
     text-align: center;
@@ -2316,6 +2481,10 @@ button {
     text-align: center;
     font-size: 0.82rem;
     font-weight: 800;
+}
+
+.distribution-error.success-message {
+    color: var(--income-green);
 }
 
 .save-distribution-btn {
