@@ -107,6 +107,7 @@
     let viewedBannerIds = new Set();
     let bannerTouchStartX = 0;
     let bannerTouchDeltaX = 0;
+    let bannerPointerDown = false;
 
     // Chart instances
     let categoryChart = null;
@@ -593,7 +594,7 @@
         `).join('');
 
         dom.bannerDots.innerHTML = banners.map((_, index) => (
-            `<span class="banner-dot${index === 0 ? ' active' : ''}" data-index="${index}"></span>`
+            `<button class="banner-dot${index === 0 ? ' active' : ''}" type="button" data-index="${index}" aria-label="عرض الإعلان ${index + 1}"></button>`
         )).join('');
 
         dom.bannerSlider.classList.remove('hidden');
@@ -619,6 +620,13 @@
             }
         });
 
+        dom.bannerDots.querySelectorAll('.banner-dot').forEach((dot) => {
+            dot.addEventListener('click', () => {
+                updateBannerSlide(Number(dot.dataset.index || 0));
+                startBannerAutoSlide();
+            });
+        });
+
         dom.bannerTrack.addEventListener('touchstart', (event) => {
             bannerTouchStartX = event.touches[0].clientX;
             bannerTouchDeltaX = 0;
@@ -636,6 +644,30 @@
                 updateBannerSlide(activeBannerIndex - 1);
             }
             startBannerAutoSlide();
+        });
+
+        dom.bannerTrack.addEventListener('pointerdown', (event) => {
+            if (event.pointerType === 'touch') return;
+            bannerPointerDown = true;
+            bannerTouchStartX = event.clientX;
+            bannerTouchDeltaX = 0;
+        });
+
+        dom.bannerTrack.addEventListener('pointermove', (event) => {
+            if (!bannerPointerDown) return;
+            bannerTouchDeltaX = event.clientX - bannerTouchStartX;
+        });
+
+        dom.bannerTrack.addEventListener('pointerup', () => {
+            if (!bannerPointerDown) return;
+            bannerPointerDown = false;
+            if (Math.abs(bannerTouchDeltaX) < 40) return;
+            updateBannerSlide(bannerTouchDeltaX < 0 ? activeBannerIndex + 1 : activeBannerIndex - 1);
+            startBannerAutoSlide();
+        });
+
+        dom.bannerTrack.addEventListener('pointerleave', () => {
+            bannerPointerDown = false;
         });
     }
 
@@ -693,7 +725,7 @@
         if (banners.length <= 1) return;
         bannerAutoTimer = setInterval(() => {
             updateBannerSlide(activeBannerIndex + 1);
-        }, 4500);
+        }, 7000);
     }
 
     function stopBannerAutoSlide() {
