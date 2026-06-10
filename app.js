@@ -93,6 +93,7 @@
     let toastTimer = null;
     let authUser = null;
     let demoMode = true;
+    let demoImportInProgress = false;
     let isBannerAdmin = false;
     let appFlowStarted = false;
     let authMode = 'login';
@@ -190,6 +191,110 @@
             });
         } else if (count > 5 && count % 3 === 0) {
             showToast('سجّل دخولك لحفظ بيانات التجربة والرجوع لها لاحقاً');
+        }
+    }
+
+    function getStoredDemoData() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEYS.DEMO_DATA);
+            return raw ? JSON.parse(raw) : null;
+        } catch (error) {
+            console.warn('Stored demo data parsing failed:', error);
+            return null;
+        }
+    }
+
+    async function importDemoDataToAccount() {
+        if (!authUser || !supabaseClient || demoImportInProgress) return false;
+
+        const demoData = getStoredDemoData();
+        const demoTransactions = Array.isArray(demoData?.transactions) ? demoData.transactions : [];
+        const demoBalances = normalizeWalletBalances(demoData?.walletBalances || DEFAULT_WALLET_BALANCES);
+        const hasDemoBalances = Object.values(demoBalances).some((value) => Number(value || 0) !== 0);
+
+        if (!demoTransactions.length && !hasDemoBalances) return false;
+
+        demoImportInProgress = true;
+
+        try {
+            const userId = authUser.id;
+            const incomes = demoTransactions.filter((record) => record.type === 'income');
+            const expenses = demoTransactions.filter((record) => record.type === 'expense');
+            const transfers = demoTransactions.filter((record) => record.type === 'transfer');
+
+            if (incomes.length) {
+                const { error } = await supabaseClient
+                    .from('incomes')
+                    .insert(incomes.map((record) => ({
+                        user_id: userId,
+                        amount: Number(record.amount || 0),
+                        note: record.description || '',
+                        income_date: record.date || new Date().toISOString().split('T')[0],
+                        expenses_amount: Number(record.expensesAmount || 0),
+                        savings_amount: Number(record.savingsAmount || 0),
+                        emergency_amount: Number(record.emergencyAmount || 0),
+                    })));
+                if (error) throw error;
+            }
+
+            for (const record of expenses) {
+                const { data, error } = await supabaseClient
+                    .from('transactions')
+                    .insert({
+                        user_id: userId,
+                        amount: Number(record.amount || 0),
+                        category: record.category || 'food',
+                        source_wallet: record.sourceWallet || 'expenses',
+                        payment_method: record.paymentMethod || 'cash',
+                        note: record.description || '',
+                        transaction_date: record.date || new Date().toISOString().split('T')[0],
+                    })
+                    .select('id')
+                    .single();
+
+                if (error) throw error;
+
+                const splitParts = Array.isArray(record.walletSplits) ? record.walletSplits : [];
+                if (splitParts.length > 1) {
+                    const { error: splitError } = await supabaseClient
+                        .from('transaction_wallet_splits')
+                        .insert(splitParts.map((part) => ({
+                            transaction_id: data.id,
+                            user_id: userId,
+                            source_wallet: part.source_wallet,
+                            amount: Number(part.amount || 0),
+                        })));
+                    if (splitError) throw splitError;
+                }
+            }
+
+            if (transfers.length) {
+                const { error } = await supabaseClient
+                    .from('wallet_transfers')
+                    .insert(transfers.map((record) => ({
+                        user_id: userId,
+                        from_wallet: record.fromWallet || 'expenses',
+                        to_wallet: record.toWallet || 'savings',
+                        amount: Number(record.amount || 0),
+                        note: record.description || '',
+                        transfer_date: record.date || new Date().toISOString().split('T')[0],
+                    })));
+                if (error) throw error;
+            }
+
+            await saveWalletBalances({
+                expenses_balance: Number(walletBalances.expenses_balance || 0) + Number(demoBalances.expenses_balance || 0),
+                savings_balance: Number(walletBalances.savings_balance || 0) + Number(demoBalances.savings_balance || 0),
+                emergency_balance: Number(walletBalances.emergency_balance || 0) + Number(demoBalances.emergency_balance || 0),
+                total_income: Number(walletBalances.total_income || 0) + Number(demoBalances.total_income || 0),
+                total_spent: Number(walletBalances.total_spent || 0) + Number(demoBalances.total_spent || 0),
+            });
+
+            clearDemoData();
+            await loadRecentRecords();
+            return true;
+        } finally {
+            demoImportInProgress = false;
         }
     }
 
@@ -1257,9 +1362,12 @@
 
         try {
             await initializeFinancialData();
+            const importedDemoData = await importDemoDataToAccount();
             startAuthenticatedFlow();
-            if (localStorage.getItem(STORAGE_KEYS.DEMO_DATA)) {
-                showToast('لديك بيانات تجربة مؤقتة. يمكننا إضافة خيار نقلها لحسابك لاحقاً.');
+            if (importedDemoData) {
+                updateHome();
+                updateAnalytics();
+                showToast('تم تسجيل الدخول وحفظ بيانات التجربة في حسابك.');
             } else {
                 showToast('تم تسجيل الدخول بنجاح. بيانات حسابك محفوظة الآن.');
             }
@@ -3553,7 +3661,7 @@
         if (!('serviceWorker' in navigator)) return;
 
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js?v=27', { scope: './' })
+            navigator.serviceWorker.register('./sw.js?v=28', { scope: './' })
                 .then((registration) => {
                     registration.update();
                 })
