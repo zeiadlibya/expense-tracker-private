@@ -108,6 +108,7 @@
     let bannerTouchDeltaX = 0;
     let bannerPointerDown = false;
     let bannerWasSwiping = false;
+    let bannerSwipeEventsBound = false;
 
     // Chart instances
     let categoryChart = null;
@@ -281,6 +282,7 @@
     async function loadRecentRecords() {
         if (!supabaseClient) return transactions;
         const userId = requireFinancialUser();
+        const recordsLimit = 1000;
 
         const [incomeResult, expenseResult, transferResult] = await Promise.all([
             supabaseClient
@@ -288,19 +290,19 @@
                 .select('id, amount, note, income_date, expenses_amount, savings_amount, emergency_amount, created_at')
                 .eq('user_id', userId)
                 .order('created_at', { ascending: false })
-                .limit(50),
+                .limit(recordsLimit),
             supabaseClient
                 .from('transactions')
                 .select('id, amount, category, source_wallet, payment_method, note, transaction_date, created_at')
                 .eq('user_id', userId)
                 .order('created_at', { ascending: false })
-                .limit(50),
+                .limit(recordsLimit),
             supabaseClient
                 .from('wallet_transfers')
                 .select('id, from_wallet, to_wallet, amount, note, transfer_date, created_at')
                 .eq('user_id', userId)
                 .order('created_at', { ascending: false })
-                .limit(50),
+                .limit(recordsLimit),
         ]);
 
         if (incomeResult.error) throw incomeResult.error;
@@ -433,6 +435,8 @@
         });
 
         const swipeSurface = dom.bannerSlider || dom.bannerTrack;
+        if (bannerSwipeEventsBound) return;
+        bannerSwipeEventsBound = true;
 
         swipeSurface.addEventListener('touchstart', (event) => {
             bannerTouchStartX = event.touches[0].clientX;
@@ -1502,6 +1506,7 @@
                 [getWalletBalanceKey(toWallet)]: getWalletBalance(toWallet) + amount,
             });
 
+            await loadRecentRecords();
             updateHome();
             updateAnalytics();
             closeTransferModal();
@@ -2004,13 +2009,15 @@
             if (confirm('هل أنت متأكد من حذف جميع البيانات؟ لا يمكن التراجع عن هذا الإجراء.')) {
                 try {
                     const userId = requireFinancialUser();
-                    const [incomeDelete, expenseDelete] = await Promise.all([
+                    const [incomeDelete, expenseDelete, transferDelete] = await Promise.all([
                         supabaseClient.from('incomes').delete().eq('user_id', userId),
                         supabaseClient.from('transactions').delete().eq('user_id', userId),
+                        supabaseClient.from('wallet_transfers').delete().eq('user_id', userId),
                     ]);
 
                     if (incomeDelete.error) throw incomeDelete.error;
                     if (expenseDelete.error) throw expenseDelete.error;
+                    if (transferDelete.error) throw transferDelete.error;
 
                     transactions = [];
                     await saveWalletBalances({ ...DEFAULT_WALLET_BALANCES });
@@ -2463,7 +2470,7 @@
                         <span class="payment-badge ${paymentClass}">${paymentLabel}</span>
                         <span class="payment-badge badge-wallet">${walletLabel}</span>
                     </div>
-                    <div class="transaction-desc">${tx.description || 'بدون وصف'}</div>
+                    <div class="transaction-desc">${escapeHTML(tx.description || 'بدون وصف')}</div>
                     <span class="transaction-date-text">${dateFormatted}</span>
                 </div>
                 <div>
@@ -2477,7 +2484,7 @@
                 <div class="transaction-icon income-type">💰</div>
                 <div class="transaction-info">
                     <div class="transaction-category">دخل</div>
-                    <div class="transaction-desc">${tx.description || 'بدون وصف'}</div>
+                    <div class="transaction-desc">${escapeHTML(tx.description || 'بدون وصف')}</div>
                     <span class="transaction-date-text">${dateFormatted}</span>
                 </div>
                 <div>
@@ -2491,7 +2498,7 @@
                 <div class="transaction-icon transfer-type">⇄</div>
                 <div class="transaction-info">
                     <div class="transaction-category">تحويل</div>
-                    <div class="transaction-desc">${WALLET_LABELS[tx.fromWallet]} ← ${WALLET_LABELS[tx.toWallet]}${tx.description ? ` - ${tx.description}` : ''}</div>
+                    <div class="transaction-desc">${WALLET_LABELS[tx.fromWallet]} ← ${WALLET_LABELS[tx.toWallet]}${tx.description ? ` - ${escapeHTML(tx.description)}` : ''}</div>
                     <span class="transaction-date-text">${dateFormatted}</span>
                 </div>
                 <div>
@@ -3162,7 +3169,7 @@
         if (!('serviceWorker' in navigator)) return;
 
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js?v=22', { scope: './' })
+            navigator.serviceWorker.register('./sw.js?v=25', { scope: './' })
                 .then((registration) => {
                     registration.update();
                 })
