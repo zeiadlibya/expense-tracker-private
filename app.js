@@ -11,6 +11,7 @@
     // ==========================================
     const SUPABASE_URL = "https://gtqxewzvhxhfnumdsgyj.supabase.co";
     const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_Go8b9K2xCi2aIybRvwrMSw_0etxTUsd";
+    const ADMIN_EMAIL = 'zeiadlibya@gmail.com';
 
     function hasSupabaseConfig() {
         return (
@@ -34,9 +35,11 @@
         CURRENCY: 'wallet_currency',
         UI_THEME: 'cashgo_ui_theme',
         UI_COLOR_THEME: 'cashgo_ui_color_theme',
+        UI_LANGUAGE: 'cashgo_ui_language',
         DEMO_DATA: 'cashgo_demo_data',
         DEMO_ACTION_COUNT: 'cashgo_demo_action_count',
     };
+    const SUPPORTED_LANGUAGES = ['ar', 'en'];
     const FIXED_SPLIT_RATIOS = {
         savings: 0.30,
         expenses: 0.50,
@@ -86,6 +89,7 @@
     const DAYS_AR = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
     let currency = loadCurrency();
+    let appLanguage = loadUiLanguage();
     let transactions = [];
     let userSettings = { ...DEFAULT_USER_SETTINGS };
     let walletBalances = { ...DEFAULT_WALLET_BALANCES };
@@ -132,6 +136,24 @@
 
     function saveCurrency() {
         localStorage.setItem(STORAGE_KEYS.CURRENCY, currency);
+    }
+
+    function loadUiLanguage() {
+        const savedLanguage = localStorage.getItem(STORAGE_KEYS.UI_LANGUAGE);
+        return SUPPORTED_LANGUAGES.includes(savedLanguage) ? savedLanguage : 'ar';
+    }
+
+    function saveUiLanguage(language) {
+        appLanguage = SUPPORTED_LANGUAGES.includes(language) ? language : 'ar';
+        localStorage.setItem(STORAGE_KEYS.UI_LANGUAGE, appLanguage);
+        applyUiLanguage();
+        updateLanguageControls();
+    }
+
+    function applyUiLanguage() {
+        document.documentElement.lang = appLanguage;
+        document.documentElement.dir = appLanguage === 'ar' ? 'rtl' : 'ltr';
+        document.body.dataset.language = appLanguage;
     }
 
     function loadLocalAppearance() {
@@ -1067,6 +1089,13 @@
             return false;
         }
 
+        const userEmail = (authUser.email || '').toLowerCase();
+        if (userEmail === ADMIN_EMAIL) {
+            isBannerAdmin = true;
+            updateAdminUI();
+            return true;
+        }
+
         try {
             const { data, error } = await supabaseClient
                 .from('app_admins')
@@ -1086,6 +1115,9 @@
     }
 
     function updateAdminUI() {
+        if (dom.bannerSettingsSection) {
+            dom.bannerSettingsSection.classList.toggle('hidden', isDemoMode() || !isBannerAdmin);
+        }
         if (dom.openBannerAdminBtn) {
             dom.openBannerAdminBtn.classList.toggle('hidden', isDemoMode() || !isBannerAdmin);
         }
@@ -1215,11 +1247,13 @@
         settingsModal: $('#settings-modal'),
         closeSettings: $('#close-settings'),
         currencySelect: $('#currency-select'),
+        languageToggle: $('#language-toggle'),
         appearanceModeToggle: $('#appearance-mode-toggle'),
         colorThemeGrid: $('#color-theme-grid'),
         clearDataBtn: $('#clear-data-btn'),
         accountEmail: $('#account-email'),
         logoutBtn: $('#logout-btn'),
+        bannerSettingsSection: $('#banner-settings-section'),
         openBannerAdminBtn: $('#open-banner-admin-btn'),
 
         // Banner admin modal
@@ -1309,8 +1343,10 @@
         // Set currency select
         dom.currencySelect.value = currency;
         userSettings = normalizeUserSettings({ ...userSettings, ...loadLocalAppearance() });
+        applyUiLanguage();
         applyAppearance(userSettings);
         updateAppearanceControls();
+        updateLanguageControls();
         hideToast();
 
         // Bind events
@@ -1659,6 +1695,9 @@
         if (dom.demoNotice) {
             dom.demoNotice.classList.toggle('hidden', !demo);
         }
+        if (dom.bannerSettingsSection) {
+            dom.bannerSettingsSection.classList.toggle('hidden', demo || !isBannerAdmin);
+        }
         if (dom.openBannerAdminBtn) {
             dom.openBannerAdminBtn.classList.toggle('hidden', demo || !isBannerAdmin);
         }
@@ -1692,6 +1731,13 @@
                 btn.classList.toggle('active', btn.dataset.colorTheme === userSettings.color_theme);
             });
         }
+    }
+
+    function updateLanguageControls() {
+        if (!dom.languageToggle) return;
+        dom.languageToggle.querySelectorAll('.language-btn').forEach((btn) => {
+            btn.classList.toggle('active', btn.dataset.language === appLanguage);
+        });
     }
 
     async function handleAppearanceChange(nextAppearance) {
@@ -2459,6 +2505,15 @@
                 const btn = event.target.closest('.appearance-mode-btn');
                 if (!btn) return;
                 handleAppearanceChange({ theme: btn.dataset.themeMode });
+            });
+        }
+
+        if (dom.languageToggle) {
+            dom.languageToggle.addEventListener('click', (event) => {
+                const btn = event.target.closest('.language-btn');
+                if (!btn) return;
+                saveUiLanguage(btn.dataset.language);
+                showToast(btn.dataset.language === 'ar' ? 'تم اختيار اللغة العربية' : 'English selected');
             });
         }
 
@@ -3788,7 +3843,7 @@
         if (!('serviceWorker' in navigator)) return;
 
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js?v=30', { scope: './' })
+            navigator.serviceWorker.register('./sw.js?v=33', { scope: './' })
                 .then((registration) => {
                     registration.update();
                 })

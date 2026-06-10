@@ -2466,7 +2466,8 @@ button {
     border-bottom: none;
 }
 
-.appearance-toggle {
+.appearance-toggle,
+.language-toggle {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 4px;
@@ -2477,7 +2478,8 @@ button {
     border-radius: var(--radius-md);
 }
 
-.appearance-mode-btn {
+.appearance-mode-btn,
+.language-btn {
     min-height: 42px;
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
@@ -2485,7 +2487,8 @@ button {
     font-weight: 900;
 }
 
-.appearance-mode-btn.active {
+.appearance-mode-btn.active,
+.language-btn.active {
     background: var(--accent-purple);
     color: #fff;
     box-shadow: var(--shadow-sm);

@@ -19,7 +19,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=30">
+    <link rel="stylesheet" href="style.css?v=33">
 </head>
 <body>
     <!-- Supabase Authentication -->
@@ -603,6 +603,14 @@
                     </section>
 
                     <section class="settings-section">
+                        <h4>اللغة</h4>
+                        <div class="language-toggle" id="language-toggle" aria-label="اختيار اللغة">
+                            <button class="language-btn active" type="button" data-language="ar">العربية</button>
+                            <button class="language-btn" type="button" data-language="en">English</button>
+                        </div>
+                    </section>
+
+                    <section class="settings-section">
                         <h4>المظهر والثيمات</h4>
                         <div class="appearance-toggle" id="appearance-mode-toggle">
                             <button class="appearance-mode-btn active" type="button" data-theme-mode="light">الوضع الفاتح</button>
@@ -628,7 +636,7 @@
                         </div>
                     </section>
 
-                    <section class="settings-section">
+                    <section class="settings-section hidden" id="banner-settings-section">
                         <h4>الإعلانات / البنرات</h4>
                         <div class="setting-item">
                             <span>إعلانات الصفحة الرئيسية</span>
@@ -858,6 +866,6 @@
 
     </div>
 
-    <script src="app.js?v=30"></script>
+    <script src="app.js?v=33"></script>
 </body>
 </html>
