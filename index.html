@@ -19,7 +19,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=28">
+    <link rel="stylesheet" href="style.css?v=29">
 </head>
 <body>
     <!-- Supabase Authentication -->
@@ -577,31 +577,72 @@
                     </button>
                 </div>
                 <div class="modal-body">
-                    <div class="setting-account" id="account-panel">
-                        <div>
-                            <span class="account-label">الحساب</span>
-                            <strong id="account-email">غير مسجل</strong>
+                    <section class="settings-section">
+                        <h4>الحساب</h4>
+                        <div class="setting-account" id="account-panel">
+                            <div>
+                                <span class="account-label">الحساب</span>
+                                <strong id="account-email">غير مسجل</strong>
+                            </div>
+                            <button class="logout-btn" id="logout-btn" type="button">تسجيل الخروج</button>
                         </div>
-                        <button class="logout-btn" id="logout-btn" type="button">تسجيل الخروج</button>
-                    </div>
-                    <div class="setting-item">
-                        <span>العملة</span>
-                        <select id="currency-select" class="setting-select">
-                            <option value="د.ل">دينار ليبي (د.ل)</option>
-                            <option value="ر.س">ريال سعودي (ر.س)</option>
-                            <option value="د.إ">درهم إماراتي (د.إ)</option>
-                            <option value="$">دولار ($)</option>
-                            <option value="€">يورو (€)</option>
-                        </select>
-                    </div>
-                    <div class="setting-item">
-                        <span>إعلانات الصفحة الرئيسية</span>
-                        <button class="setting-admin-btn hidden" id="open-banner-admin-btn" type="button">إدارة البنرات</button>
-                    </div>
-                    <div class="setting-item danger-setting">
-                        <span>حذف جميع البيانات</span>
-                        <button class="danger-btn" id="clear-data-btn">مسح الكل</button>
-                    </div>
+                    </section>
+
+                    <section class="settings-section">
+                        <h4>توزيع الدخل</h4>
+                        <div class="setting-item">
+                            <span>العملة</span>
+                            <select id="currency-select" class="setting-select">
+                                <option value="د.ل">دينار ليبي (د.ل)</option>
+                                <option value="ر.س">ريال سعودي (ر.س)</option>
+                                <option value="د.إ">درهم إماراتي (د.إ)</option>
+                                <option value="$">دولار ($)</option>
+                                <option value="€">يورو (€)</option>
+                            </select>
+                        </div>
+                    </section>
+
+                    <section class="settings-section">
+                        <h4>المظهر والثيمات</h4>
+                        <div class="appearance-toggle" id="appearance-mode-toggle">
+                            <button class="appearance-mode-btn active" type="button" data-theme-mode="light">الوضع الفاتح</button>
+                            <button class="appearance-mode-btn" type="button" data-theme-mode="dark">الوضع الداكن</button>
+                        </div>
+                        <div class="theme-grid" id="color-theme-grid">
+                            <button class="theme-card active" type="button" data-color-theme="classic">
+                                <span>الكلاسيكي</span>
+                                <span class="theme-swatches"><i style="background:#111827"></i><i style="background:#ffffff"></i><i style="background:#6b7280"></i></span>
+                            </button>
+                            <button class="theme-card" type="button" data-color-theme="blue">
+                                <span>الأزرق</span>
+                                <span class="theme-swatches"><i style="background:#2563eb"></i><i style="background:#dbeafe"></i><i style="background:#60a5fa"></i></span>
+                            </button>
+                            <button class="theme-card" type="button" data-color-theme="green">
+                                <span>الأخضر</span>
+                                <span class="theme-swatches"><i style="background:#059669"></i><i style="background:#dcfce7"></i><i style="background:#34d399"></i></span>
+                            </button>
+                            <button class="theme-card" type="button" data-color-theme="orange">
+                                <span>البرتقالي</span>
+                                <span class="theme-swatches"><i style="background:#f97316"></i><i style="background:#ffedd5"></i><i style="background:#fbbf24"></i></span>
+                            </button>
+                        </div>
+                    </section>
+
+                    <section class="settings-section">
+                        <h4>الإعلانات / البنرات</h4>
+                        <div class="setting-item">
+                            <span>إعلانات الصفحة الرئيسية</span>
+                            <button class="setting-admin-btn hidden" id="open-banner-admin-btn" type="button">إدارة البنرات</button>
+                        </div>
+                    </section>
+
+                    <section class="settings-section">
+                        <h4>تسجيل الخروج</h4>
+                        <div class="setting-item danger-setting">
+                            <span>حذف جميع البيانات</span>
+                            <button class="danger-btn" id="clear-data-btn">مسح الكل</button>
+                        </div>
+                    </section>
                 </div>
             </div>
         </div>
@@ -817,6 +858,6 @@
 
     </div>
 
-    <script src="app.js?v=28"></script>
+    <script src="app.js?v=29"></script>
 </body>
 </html>

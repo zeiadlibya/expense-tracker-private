@@ -32,6 +32,8 @@
     // ==========================================
     const STORAGE_KEYS = {
         CURRENCY: 'wallet_currency',
+        UI_THEME: 'cashgo_ui_theme',
+        UI_COLOR_THEME: 'cashgo_ui_color_theme',
         DEMO_DATA: 'cashgo_demo_data',
         DEMO_ACTION_COUNT: 'cashgo_demo_action_count',
     };
@@ -43,6 +45,7 @@
     const DEFAULT_USER_SETTINGS = {
         currency: 'LYD',
         theme: 'light',
+        color_theme: 'classic',
         expenses_percentage: 50,
         savings_percentage: 30,
         emergency_percentage: 20,
@@ -131,6 +134,32 @@
         localStorage.setItem(STORAGE_KEYS.CURRENCY, currency);
     }
 
+    function loadLocalAppearance() {
+        return {
+            theme: localStorage.getItem(STORAGE_KEYS.UI_THEME) || DEFAULT_USER_SETTINGS.theme,
+            color_theme: localStorage.getItem(STORAGE_KEYS.UI_COLOR_THEME) || DEFAULT_USER_SETTINGS.color_theme,
+        };
+    }
+
+    function saveLocalAppearance(settings) {
+        localStorage.setItem(STORAGE_KEYS.UI_THEME, settings.theme || DEFAULT_USER_SETTINGS.theme);
+        localStorage.setItem(STORAGE_KEYS.UI_COLOR_THEME, settings.color_theme || DEFAULT_USER_SETTINGS.color_theme);
+    }
+
+    function applyAppearance(settings = userSettings) {
+        const mode = settings.theme === 'dark' ? 'dark' : 'light';
+        const colorTheme = ['classic', 'blue', 'green', 'orange'].includes(settings.color_theme)
+            ? settings.color_theme
+            : DEFAULT_USER_SETTINGS.color_theme;
+
+        document.documentElement.dataset.appearanceMode = mode;
+        document.documentElement.dataset.colorTheme = colorTheme;
+        const metaTheme = document.querySelector('meta[name="theme-color"]');
+        if (metaTheme) {
+            metaTheme.setAttribute('content', mode === 'dark' ? '#0a0a0f' : '#f8fafc');
+        }
+    }
+
     function isDemoMode() {
         return !authUser || demoMode;
     }
@@ -141,19 +170,25 @@
             if (!raw) {
                 transactions = [];
                 walletBalances = { ...DEFAULT_WALLET_BALANCES };
-                userSettings = { ...DEFAULT_USER_SETTINGS };
+                userSettings = { ...DEFAULT_USER_SETTINGS, ...loadLocalAppearance() };
+                applyAppearance(userSettings);
                 return;
             }
 
             const data = JSON.parse(raw);
             transactions = Array.isArray(data.transactions) ? data.transactions : [];
             walletBalances = normalizeWalletBalances(data.walletBalances || DEFAULT_WALLET_BALANCES);
-            userSettings = normalizeUserSettings(data.userSettings || DEFAULT_USER_SETTINGS);
+            userSettings = normalizeUserSettings({
+                ...data.userSettings,
+                ...loadLocalAppearance(),
+            });
+            applyAppearance(userSettings);
         } catch (error) {
             console.warn('Demo data loading failed:', error);
             transactions = [];
             walletBalances = { ...DEFAULT_WALLET_BALANCES };
-            userSettings = { ...DEFAULT_USER_SETTINGS };
+            userSettings = { ...DEFAULT_USER_SETTINGS, ...loadLocalAppearance() };
+            applyAppearance(userSettings);
         }
     }
 
@@ -310,21 +345,37 @@
     async function loadUserSettings() {
         if (!supabaseClient) return userSettings;
         const userId = requireFinancialUser();
+        let supportsColorTheme = true;
 
-        const { data, error } = await supabaseClient
+        let { data, error } = await supabaseClient
             .from('user_settings')
-            .select('expenses_percentage, savings_percentage, emergency_percentage, currency, theme')
+            .select('expenses_percentage, savings_percentage, emergency_percentage, currency, theme, color_theme')
             .eq('user_id', userId)
             .maybeSingle();
+
+        if (isMissingColorThemeColumn(error)) {
+            supportsColorTheme = false;
+            showToast('أضف عمود color_theme في Supabase أولاً');
+            const fallback = await supabaseClient
+                .from('user_settings')
+                .select('expenses_percentage, savings_percentage, emergency_percentage, currency, theme')
+                .eq('user_id', userId)
+                .maybeSingle();
+            data = fallback.data;
+            error = fallback.error;
+        }
 
         if (error) throw error;
 
         if (!data) {
             const defaults = { user_id: userId, ...DEFAULT_USER_SETTINGS };
+            if (!supportsColorTheme) delete defaults.color_theme;
             const { data: inserted, error: insertError } = await supabaseClient
                 .from('user_settings')
                 .insert(defaults)
-                .select('expenses_percentage, savings_percentage, emergency_percentage, currency, theme')
+                .select(supportsColorTheme
+                    ? 'expenses_percentage, savings_percentage, emergency_percentage, currency, theme, color_theme'
+                    : 'expenses_percentage, savings_percentage, emergency_percentage, currency, theme')
                 .single();
 
             if (insertError) throw insertError;
@@ -339,6 +390,8 @@
         }
         updateDistributionSummary();
         updateCurrencyBadges();
+        applyAppearance(userSettings);
+        updateAppearanceControls();
         return userSettings;
     }
 
@@ -350,6 +403,7 @@
             user_id: userId,
             currency: nextSettings.currency || userSettings.currency || DEFAULT_USER_SETTINGS.currency,
             theme: nextSettings.theme || userSettings.theme || DEFAULT_USER_SETTINGS.theme,
+            color_theme: nextSettings.color_theme || userSettings.color_theme || DEFAULT_USER_SETTINGS.color_theme,
             expenses_percentage: Number(nextSettings.expenses_percentage),
             savings_percentage: Number(nextSettings.savings_percentage),
             emergency_percentage: Number(nextSettings.emergency_percentage),
@@ -359,8 +413,12 @@
             .from('user_settings')
             .update(payload)
             .eq('user_id', userId)
-            .select('expenses_percentage, savings_percentage, emergency_percentage, currency, theme')
+            .select('expenses_percentage, savings_percentage, emergency_percentage, currency, theme, color_theme')
             .maybeSingle();
+
+        if (isMissingColorThemeColumn(error)) {
+            throw new Error('missing_color_theme_column');
+        }
 
         if (error) throw error;
 
@@ -368,7 +426,7 @@
             const insertResult = await supabaseClient
                 .from('user_settings')
                 .insert(payload)
-                .select('expenses_percentage, savings_percentage, emergency_percentage, currency, theme')
+                .select('expenses_percentage, savings_percentage, emergency_percentage, currency, theme, color_theme')
                 .single();
 
             if (insertResult.error) throw insertResult.error;
@@ -382,6 +440,8 @@
         }
         updateDistributionSummary();
         updateCurrencyBadges();
+        applyAppearance(userSettings);
+        updateAppearanceControls();
         return userSettings;
     }
 
@@ -912,10 +972,16 @@
         return {
             currency: settings.currency || DEFAULT_USER_SETTINGS.currency,
             theme: settings.theme || DEFAULT_USER_SETTINGS.theme,
+            color_theme: settings.color_theme || DEFAULT_USER_SETTINGS.color_theme,
             expenses_percentage: Number(settings.expenses_percentage ?? DEFAULT_USER_SETTINGS.expenses_percentage),
             savings_percentage: Number(settings.savings_percentage ?? DEFAULT_USER_SETTINGS.savings_percentage),
             emergency_percentage: Number(settings.emergency_percentage ?? DEFAULT_USER_SETTINGS.emergency_percentage),
         };
+    }
+
+    function isMissingColorThemeColumn(error) {
+        const message = error && error.message ? error.message.toLowerCase() : '';
+        return Boolean(error) && message.includes('color_theme') && message.includes('column');
     }
 
     function normalizeWalletBalances(balances = {}) {
@@ -1149,6 +1215,8 @@
         settingsModal: $('#settings-modal'),
         closeSettings: $('#close-settings'),
         currencySelect: $('#currency-select'),
+        appearanceModeToggle: $('#appearance-mode-toggle'),
+        colorThemeGrid: $('#color-theme-grid'),
         clearDataBtn: $('#clear-data-btn'),
         accountEmail: $('#account-email'),
         logoutBtn: $('#logout-btn'),
@@ -1240,6 +1308,9 @@
 
         // Set currency select
         dom.currencySelect.value = currency;
+        userSettings = normalizeUserSettings({ ...userSettings, ...loadLocalAppearance() });
+        applyAppearance(userSettings);
+        updateAppearanceControls();
         hideToast();
 
         // Bind events
@@ -1607,6 +1678,46 @@
         document.querySelectorAll('.currency-badge').forEach((badge) => {
             badge.textContent = getCurrencyDisplay();
         });
+    }
+
+    function updateAppearanceControls() {
+        if (dom.appearanceModeToggle) {
+            dom.appearanceModeToggle.querySelectorAll('.appearance-mode-btn').forEach((btn) => {
+                btn.classList.toggle('active', btn.dataset.themeMode === userSettings.theme);
+            });
+        }
+
+        if (dom.colorThemeGrid) {
+            dom.colorThemeGrid.querySelectorAll('.theme-card').forEach((btn) => {
+                btn.classList.toggle('active', btn.dataset.colorTheme === userSettings.color_theme);
+            });
+        }
+    }
+
+    async function handleAppearanceChange(nextAppearance) {
+        const nextSettings = normalizeUserSettings({
+            ...userSettings,
+            ...nextAppearance,
+        });
+
+        userSettings = nextSettings;
+        applyAppearance(userSettings);
+        updateAppearanceControls();
+
+        try {
+            if (isDemoMode()) {
+                saveLocalAppearance(userSettings);
+                saveDemoData();
+            } else {
+                await saveUserSettings(userSettings);
+            }
+            showToast('تم حفظ المظهر بنجاح');
+        } catch (error) {
+            console.error('Failed to save appearance:', error);
+            showToast(error.message === 'missing_color_theme_column'
+                ? 'أضف عمود color_theme في Supabase أولاً'
+                : 'تعذر حفظ المظهر');
+        }
     }
 
     function getWalletBalanceKey(wallet) {
@@ -2342,6 +2453,22 @@
             updateHome();
             updateAnalytics();
         });
+
+        if (dom.appearanceModeToggle) {
+            dom.appearanceModeToggle.addEventListener('click', (event) => {
+                const btn = event.target.closest('.appearance-mode-btn');
+                if (!btn) return;
+                handleAppearanceChange({ theme: btn.dataset.themeMode });
+            });
+        }
+
+        if (dom.colorThemeGrid) {
+            dom.colorThemeGrid.addEventListener('click', (event) => {
+                const btn = event.target.closest('.theme-card');
+                if (!btn) return;
+                handleAppearanceChange({ color_theme: btn.dataset.colorTheme });
+            });
+        }
 
         if (dom.openBannerAdminBtn) {
             dom.openBannerAdminBtn.addEventListener('click', openBannerAdminModal);
@@ -3661,7 +3788,7 @@
         if (!('serviceWorker' in navigator)) return;
 
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js?v=28', { scope: './' })
+            navigator.serviceWorker.register('./sw.js?v=29', { scope: './' })
                 .then((registration) => {
                     registration.update();
                 })
