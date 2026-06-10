@@ -40,6 +40,219 @@
         DEMO_ACTION_COUNT: 'cashgo_demo_action_count',
     };
     const SUPPORTED_LANGUAGES = ['ar', 'en'];
+    const TEXT_TRANSLATIONS = {
+        'محفظتي - إدارة المصروفات والدخل': 'Cashgo - Expense and Income Manager',
+        'إدارة مصروفاتك اليومية بسهولة': 'Manage your daily expenses easily',
+        'البريد الإلكتروني': 'Email',
+        'كلمة المرور': 'Password',
+        'تسجيل الدخول': 'Log in',
+        'إنشاء حساب': 'Create account',
+        'إنشاء الحساب': 'Create account',
+        'تسجيل الدخول باستخدام Google': 'Sign in with Google',
+        'متابعة التجربة': 'Continue demo',
+        'إدارة ذكية لأموالك': 'Smart money management',
+        'محفظتي': 'My Wallet',
+        'أنت تستخدم Cashgo كتجربة. سجّل دخولك لحفظ بياناتك والرجوع لها من أي جهاز.': 'You are using Cashgo in demo mode. Log in to save your data and access it from any device.',
+        'حفظ بياناتي': 'Save my data',
+        'الرصيد الإجمالي': 'Total balance',
+        'الدخل': 'Income',
+        'المصروفات': 'Expenses',
+        'أرصدة المحافظ': 'Wallet balances',
+        'رصيد الادخار': 'Savings balance',
+        'رصيد المصروفات': 'Expenses balance',
+        'رصيد الطوارئ': 'Emergency balance',
+        'توزيع الدخل الحالي': 'Current income distribution',
+        'تعديل توزيع الدخل': 'Edit income distribution',
+        'تحويل بين المحافظ': 'Transfer between wallets',
+        'المصروفات حسب طريقة الدفع': 'Expenses by payment method',
+        'كاش': 'Cash',
+        'بطاقة': 'Card',
+        'آخر المعاملات': 'Recent transactions',
+        'عرض الكل': 'View all',
+        'لا توجد معاملات بعد': 'No transactions yet',
+        'ابدأ بإضافة دخل أو مصروف': 'Start by adding income or an expense',
+        'إضافة مصروف': 'Add expense',
+        'سجل مصروفاتك بسهولة وسرعة': 'Record your expenses easily and quickly',
+        'المبلغ': 'Amount',
+        'د.ل': 'LYD',
+        'الوصف (اختياري)': 'Description (optional)',
+        'نوع المصروف': 'Expense category',
+        'غذائية': 'Food',
+        'دخان': 'Smoking',
+        'ترفيه': 'Entertainment',
+        'عناية شخصية': 'Personal care',
+        'التزامات اسرية': 'Family commitments',
+        'طريقة الدفع': 'Payment method',
+        'مصدر المصروف': 'Expense source',
+        'الادخار': 'Savings',
+        'الطوارئ': 'Emergency',
+        'تقسيم المصروف على أكثر من محفظة': 'Split expense across wallets',
+        'التاريخ': 'Date',
+        'إضافة المصروف': 'Add expense',
+        'إضافة دخل': 'Add income',
+        'سجل دخلك وحدد نسب التوزيع': 'Record income and set distribution percentages',
+        'المبلغ الإجمالي': 'Total amount',
+        'المصدر (اختياري)': 'Source (optional)',
+        'يتم توزيع الدخل تلقائياً حسب النسب الحالية.': 'Income is distributed automatically using the current percentages.',
+        'إضافة الدخل': 'Add income',
+        'كل البيانات': 'All data',
+        'شهر محدد': 'Specific month',
+        'إجمالي الدخل': 'Total income',
+        'إجمالي المصروفات': 'Total expenses',
+        'الرصيد': 'Balance',
+        'سجل العمليات': 'Records',
+        'تصدير': 'Export',
+        'هذا الشهر': 'This month',
+        'اليوم': 'Today',
+        'الشهر الماضي': 'Last month',
+        'فترة مخصصة': 'Custom period',
+        'الكل': 'All',
+        'التحويلات': 'Transfers',
+        'دخل الفترة': 'Period income',
+        'مصروف الفترة': 'Period expenses',
+        'صافي المتبقي': 'Net remaining',
+        'أكثر تصنيف': 'Top category',
+        'لا يوجد': 'None',
+        'عدد العمليات': 'Records count',
+        'المصروفات حسب النوع': 'Expenses by category',
+        'كاش مقابل بطاقة': 'Cash vs card',
+        'توزيع الدخل': 'Income distribution',
+        'ادخار': 'Savings',
+        'مصروفات': 'Expenses',
+        'طوارئ': 'Emergency',
+        'الإنفاق حسب الشهر': 'Spending by month',
+        'الإنفاق اليومي': 'Daily spending',
+        'الرئيسية': 'Home',
+        'مصروف': 'Expense',
+        'دخل': 'Income',
+        'تحليلات': 'Analytics',
+        'تمت الإضافة بنجاح': 'Added successfully',
+        'الإعدادات': 'Settings',
+        'الحساب': 'Account',
+        'غير مسجل': 'Not signed in',
+        'وضع التجربة': 'Demo mode',
+        'تسجيل الخروج': 'Log out',
+        'العملة': 'Currency',
+        'دينار ليبي (د.ل)': 'Libyan dinar (LYD)',
+        'ريال سعودي (ر.س)': 'Saudi riyal (SAR)',
+        'درهم إماراتي (د.إ)': 'UAE dirham (AED)',
+        'دولار ($)': 'Dollar ($)',
+        'يورو (€)': 'Euro (€)',
+        'اللغة': 'Language',
+        'العربية': 'Arabic',
+        'المظهر والثيمات': 'Appearance and themes',
+        'الوضع الفاتح': 'Light mode',
+        'الوضع الداكن': 'Dark mode',
+        'الكلاسيكي': 'Classic',
+        'الأزرق': 'Blue',
+        'الأخضر': 'Green',
+        'البرتقالي': 'Orange',
+        'الإعلانات / البنرات': 'Ads / banners',
+        'إعلانات الصفحة الرئيسية': 'Home page ads',
+        'إدارة البنرات': 'Manage banners',
+        'حذف جميع البيانات': 'Delete all data',
+        'مسح الكل': 'Clear all',
+        'الترتيب': 'Order',
+        'نشط': 'Active',
+        'يبدأ': 'Starts',
+        'ينتهي': 'Ends',
+        'تفريغ': 'Clear',
+        'حفظ البنر': 'Save banner',
+        'تحديث البنر': 'Update banner',
+        'المصروفات %': 'Expenses %',
+        'الادخار %': 'Savings %',
+        'الطوارئ %': 'Emergency %',
+        'إلغاء': 'Cancel',
+        'حفظ': 'Save',
+        'من محفظة': 'From wallet',
+        'إلى محفظة': 'To wallet',
+        'ملاحظة': 'Note',
+        'حفظ التحويل': 'Save transfer',
+        'تأكيد الحذف': 'Confirm deletion',
+        'هل أنت متأكد من حذف هذه المعاملة؟': 'Are you sure you want to delete this record?',
+        'حذف': 'Delete',
+        'تفاصيل العملية': 'Record details',
+        'تعديل': 'Edit',
+        'تعديل العملية': 'Edit record',
+        'الوصف / الملاحظة': 'Description / note',
+        'حفظ التعديل': 'Save changes',
+        'تسجيل الدخول إلى Cashgo': 'Log in to Cashgo',
+        'إغلاق تسجيل الدخول': 'Close login',
+        'إعلانات': 'Ads',
+        'شرائح الإعلان': 'Ad slides',
+        'مثال: غداء، بنزين...': 'Example: lunch, fuel...',
+        'مثال: راتب، عمل حر...': 'Example: salary, freelance work...',
+        'نطاق التحليل': 'Analytics range',
+        'اختيار اللغة': 'Choose language',
+        'عنوان البنر': 'Banner title',
+        'رابط الصورة': 'Image URL',
+        'رابط عند الضغط': 'Click target URL',
+        'اختياري': 'Optional',
+        'يونيو': 'June',
+        'يناير': 'January',
+        'فبراير': 'February',
+        'مارس': 'March',
+        'أبريل': 'April',
+        'مايو': 'May',
+        'يوليو': 'July',
+        'أغسطس': 'August',
+        'سبتمبر': 'September',
+        'أكتوبر': 'October',
+        'نوفمبر': 'November',
+        'ديسمبر': 'December',
+        'الأحد': 'Sunday',
+        'الاثنين': 'Monday',
+        'الثلاثاء': 'Tuesday',
+        'الأربعاء': 'Wednesday',
+        'الخميس': 'Thursday',
+        'الجمعة': 'Friday',
+        'السبت': 'Saturday',
+        'تم اختيار اللغة العربية': 'Arabic selected',
+        'تم حفظ المظهر بنجاح': 'Appearance saved successfully',
+        'تعذر حفظ المظهر': 'Could not save appearance',
+        'تم حفظ توزيع الدخل': 'Income distribution saved',
+        'تم حفظ توزيع الدخل في وضع التجربة': 'Income distribution saved in demo mode',
+        'يجب أن يكون مجموع النسب 100%': 'The total percentage must be 100%',
+        'تعذر حفظ النسب. حاول مرة أخرى.': 'Could not save percentages. Try again.',
+        'أدخل مبلغ صحيح للتحويل': 'Enter a valid transfer amount',
+        'لا يمكن التحويل إلى نفس المحفظة': 'You cannot transfer to the same wallet',
+        'الرصيد غير كافٍ في المحفظة المحددة': 'Insufficient balance in the selected wallet',
+        'تم تحويل المبلغ بنجاح': 'Transfer saved successfully',
+        'تم تحويل المبلغ في وضع التجربة': 'Transfer saved in demo mode',
+        'تعذر حفظ التحويل. حاول مرة أخرى.': 'Could not save transfer. Try again.',
+        'أدخل مبلغ صحيح': 'Enter a valid amount',
+        'تم حفظ التعديل': 'Changes saved',
+        'تعذر تسجيل الخروج. حاول مرة أخرى.': 'Could not log out. Try again.',
+        'يرجى تسجيل الدخول أولاً': 'Please log in first',
+        'تم تسجيل الدخول بنجاح. بيانات حسابك محفوظة الآن.': 'Logged in successfully. Your account data is saved now.',
+        'تم تسجيل الدخول وحفظ بيانات التجربة في حسابك.': 'Logged in and saved your demo data to your account.',
+        'هذه الصفحة مخصصة للأدمن فقط': 'This page is for admins only',
+        'تم حذف البنر': 'Banner deleted',
+        'تعذر تحميل البنرات. تأكد من صلاحيات Supabase.': 'Could not load banners. Check Supabase permissions.',
+        'جاري تحميل البنرات...': 'Loading banners...',
+        'لا توجد بنرات بعد': 'No banners yet',
+        'تم مسح بيانات التجربة': 'Demo data cleared',
+        'تم مسح جميع البيانات': 'All data cleared',
+        'تعذر مسح البيانات. حاول مرة أخرى': 'Could not clear data. Try again',
+        'يجب أن يساوي مجموع التقسيم مبلغ المصروف': 'Split total must equal the expense amount',
+        'مجموع التقسيم غير مطابق للمبلغ': 'Split total does not match the amount',
+        'الرصيد غير كافٍ في هذه الخانة': 'Insufficient balance in this wallet',
+        'تمت إضافة المصروف بنجاح': 'Expense added successfully',
+        'تمت إضافة المصروف في وضع التجربة': 'Expense added in demo mode',
+        'تعذر إضافة المصروف. حاول مرة أخرى': 'Could not add expense. Try again',
+        'تمت إضافة الدخل وتوزيعه بنجاح': 'Income added and distributed successfully',
+        'تمت إضافة الدخل في وضع التجربة': 'Income added in demo mode',
+        'تعذر إضافة الدخل. حاول مرة أخرى': 'Could not add income. Try again',
+        'تم حذف المعاملة': 'Record deleted',
+        'تم حذف المعاملة من التجربة': 'Record deleted from demo',
+        'تعذر حذف المعاملة. حاول مرة أخرى': 'Could not delete record. Try again',
+        'لا توجد عمليات للتصدير': 'No records to export',
+        'تم تصدير السجل': 'Records exported',
+        'لا توجد بيانات': 'No data',
+        'كل الفترات': 'All periods',
+        'اليوم': 'Today'
+    };
+    const textOriginals = new WeakMap();
     const FIXED_SPLIT_RATIOS = {
         savings: 0.30,
         expenses: 0.50,
@@ -120,6 +333,7 @@
     let bannerPointerDown = false;
     let bannerWasSwiping = false;
     let bannerSwipeEventsBound = false;
+    let languageObserver = null;
 
     // Chart instances
     let categoryChart = null;
@@ -154,6 +368,138 @@
         document.documentElement.lang = appLanguage;
         document.documentElement.dir = appLanguage === 'ar' ? 'rtl' : 'ltr';
         document.body.dataset.language = appLanguage;
+        translatePage();
+    }
+
+    function normalizeTranslationKey(text) {
+        return String(text || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function translateText(text) {
+        if (appLanguage !== 'en') return text;
+        const original = String(text || '');
+        const key = normalizeTranslationKey(original);
+        if (!key) return original;
+
+        if (TEXT_TRANSLATIONS[key]) {
+            return original.replace(key, TEXT_TRANSLATIONS[key]);
+        }
+
+        let translated = original;
+        Object.keys(TEXT_TRANSLATIONS)
+            .sort((a, b) => b.length - a.length)
+            .forEach((arabicText) => {
+                if (!translated.includes(arabicText)) return;
+                translated = translated.split(arabicText).join(TEXT_TRANSLATIONS[arabicText]);
+            });
+        return translated;
+    }
+
+    function translateTextNode(node) {
+        if (!node || !normalizeTranslationKey(node.nodeValue)) return;
+
+        const savedOriginal = textOriginals.get(node);
+        if (appLanguage === 'ar') {
+            if (savedOriginal !== undefined) node.nodeValue = savedOriginal;
+            return;
+        }
+
+        if (savedOriginal === undefined || /[\u0600-\u06FF]/.test(node.nodeValue)) {
+            textOriginals.set(node, node.nodeValue);
+        }
+
+        const original = textOriginals.get(node) || node.nodeValue;
+        node.nodeValue = translateText(original);
+    }
+
+    function translateElementAttributes(element) {
+        if (!element || !element.getAttribute) return;
+        ['placeholder', 'aria-label', 'title'].forEach((attribute) => {
+            const value = element.getAttribute(attribute);
+            if (!value) return;
+            const dataKey = `i18nOriginal${attribute.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())}`;
+            const savedOriginal = element.dataset ? element.dataset[dataKey] : null;
+
+            if (appLanguage === 'ar') {
+                if (savedOriginal) element.setAttribute(attribute, savedOriginal);
+                return;
+            }
+
+            if (!savedOriginal || /[\u0600-\u06FF]/.test(value)) {
+                element.dataset[dataKey] = value;
+            }
+
+            element.setAttribute(attribute, translateText(element.dataset[dataKey] || value));
+        });
+    }
+
+    function translateElement(root = document.body) {
+        if (!root) return;
+
+        if (root.nodeType === Node.TEXT_NODE) {
+            translateTextNode(root);
+            return;
+        }
+
+        if (root.nodeType !== Node.ELEMENT_NODE && root.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) return;
+        const element = root.nodeType === Node.ELEMENT_NODE ? root : null;
+        if (element && ['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(element.tagName)) return;
+
+        if (element) translateElementAttributes(element);
+
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, {
+            acceptNode(node) {
+                if (node.nodeType === Node.ELEMENT_NODE && ['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(node.tagName)) {
+                    return NodeFilter.FILTER_REJECT;
+                }
+                return NodeFilter.FILTER_ACCEPT;
+            }
+        });
+
+        while (walker.nextNode()) {
+            const node = walker.currentNode;
+            if (node.nodeType === Node.TEXT_NODE) {
+                translateTextNode(node);
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                translateElementAttributes(node);
+            }
+        }
+    }
+
+    function translatePage() {
+        translateElement(document.body);
+        if (!document.documentElement.dataset.originalTitle) {
+            document.documentElement.dataset.originalTitle = document.title;
+        }
+        document.title = appLanguage === 'ar'
+            ? document.documentElement.dataset.originalTitle
+            : translateText(document.documentElement.dataset.originalTitle);
+    }
+
+    function startLanguageObserver() {
+        if (languageObserver || !document.body) return;
+
+        languageObserver = new MutationObserver((mutations) => {
+            if (appLanguage !== 'en') return;
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'characterData') {
+                    translateTextNode(mutation.target);
+                    return;
+                }
+                mutation.addedNodes.forEach((node) => translateElement(node));
+                if (mutation.type === 'attributes') {
+                    translateElementAttributes(mutation.target);
+                }
+            });
+        });
+
+        languageObserver.observe(document.body, {
+            childList: true,
+            subtree: true,
+            characterData: true,
+            attributes: true,
+            attributeFilter: ['placeholder', 'aria-label', 'title'],
+        });
     }
 
     function loadLocalAppearance() {
@@ -1343,6 +1689,7 @@
         // Set currency select
         dom.currencySelect.value = currency;
         userSettings = normalizeUserSettings({ ...userSettings, ...loadLocalAppearance() });
+        startLanguageObserver();
         applyUiLanguage();
         applyAppearance(userSettings);
         updateAppearanceControls();
@@ -3843,7 +4190,7 @@
         if (!('serviceWorker' in navigator)) return;
 
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js?v=33', { scope: './' })
+            navigator.serviceWorker.register('./sw.js?v=34', { scope: './' })
                 .then((registration) => {
                     registration.update();
                 })

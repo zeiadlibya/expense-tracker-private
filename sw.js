@@ -1,10 +1,10 @@
-const CACHE_NAME = 'cashgo-static-v12';
+const CACHE_NAME = 'cashgo-static-v13';
 
 const STATIC_ASSETS = [
   './',
   './index.html',
-  './style.css?v=33',
-  './app.js?v=33',
+  './style.css?v=34',
+  './app.js?v=34',
   './site.webmanifest?v=8',
   './icon-192.png?v=8',
   './icon-512.png?v=8',
