@@ -2281,19 +2281,6 @@ button {
     color-scheme: dark;
 }
 
-.setting-cloud {
-    padding: var(--space-md) 0;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.setting-cloud label {
-    display: block;
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    margin-bottom: var(--space-sm);
-    font-weight: 700;
-}
-
 .setting-input {
     width: 100%;
     background: var(--bg-input);
@@ -2309,37 +2296,6 @@ button {
 .setting-input:focus {
     border-color: var(--accent-purple);
     box-shadow: 0 0 0 4px var(--accent-purple-glow);
-}
-
-.connection-status {
-    margin-top: var(--space-sm);
-    font-size: 0.75rem;
-    line-height: 1.7;
-}
-
-.connection-status.online {
-    color: var(--income-green);
-}
-
-.connection-status.offline {
-    color: var(--text-muted);
-}
-
-.setting-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-sm);
-    margin-top: var(--space-md);
-}
-
-.save-cloud-btn {
-    background: var(--accent-purple);
-    color: #fff;
-}
-
-.sync-cloud-btn {
-    background: var(--bg-card);
-    color: var(--accent-purple-light);
 }
 
 .danger-btn {

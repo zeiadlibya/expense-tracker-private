@@ -19,7 +19,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=22">
+    <link rel="stylesheet" href="style.css?v=23">
 </head>
 <body>
     <!-- Supabase Authentication -->
@@ -584,15 +584,6 @@
                         <span>إعلانات الصفحة الرئيسية</span>
                         <button class="setting-admin-btn hidden" id="open-banner-admin-btn" type="button">إدارة البنرات</button>
                     </div>
-                    <div class="setting-cloud hidden">
-                        <label for="sheet-url-input">رابط Google Sheets Web App</label>
-                        <input id="sheet-url-input" class="setting-input" type="url" placeholder="https://script.google.com/macros/s/.../exec">
-                        <div class="connection-status offline" id="connection-status">وضع محلي. أضف رابط Web App لتفعيل الحفظ السحابي.</div>
-                        <div class="setting-actions">
-                            <button class="modal-btn save-cloud-btn" id="save-sheet-url-btn">حفظ الرابط</button>
-                            <button class="modal-btn sync-cloud-btn" id="cloud-sync-btn">تحميل من Google Sheets</button>
-                        </div>
-                    </div>
                     <div class="setting-item danger-setting">
                         <span>حذف جميع البيانات</span>
                         <button class="danger-btn" id="clear-data-btn">مسح الكل</button>
@@ -812,6 +803,6 @@
 
     </div>
 
-    <script src="app.js?v=22"></script>
+    <script src="app.js?v=23"></script>
 </body>
 </html>

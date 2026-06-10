@@ -1,6 +1,6 @@
 /* ============================================
    EXPENSE TRACKER - APPLICATION LOGIC
-   مع دعم Google Sheets كقاعدة بيانات
+   Supabase financial source of truth
    ============================================ */
 
 (function () {
@@ -31,10 +31,7 @@
     // DATA LAYER
     // ==========================================
     const STORAGE_KEYS = {
-        TRANSACTIONS: 'wallet_transactions',
-        INCOME_SPLITS: 'wallet_income_splits',
         CURRENCY: 'wallet_currency',
-        SHEET_URL: 'wallet_sheet_url',
     };
     const FIXED_SPLIT_RATIOS = {
         savings: 0.30,
@@ -84,16 +81,13 @@
     const DAYS_AR = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
     let currency = loadCurrency();
-    let appsScriptUrl = loadSheetUrl();
     let transactions = [];
-    let incomeSplits = { savings: 0, expenses: 0, emergency: 0 };
     let userSettings = { ...DEFAULT_USER_SETTINGS };
     let walletBalances = { ...DEFAULT_WALLET_BALANCES };
     let analyticsMode = 'all';
     let analyticsMonth = new Date().getMonth();
     let analyticsYear = new Date().getFullYear();
     let deleteTargetId = null;
-    let isSyncing = false;
     let toastTimer = null;
     let authUser = null;
     let isBannerAdmin = false;
@@ -122,214 +116,14 @@
     let dailyChart = null;
 
     // ==========================================
-    // GOOGLE SHEETS SYNC
+    // LOCAL STORAGE (UI preferences only)
     // ==========================================
-    function isOnlineMode() {
-        return appsScriptUrl && appsScriptUrl.length > 10;
-    }
-
-    async function syncFromCloud() {
-        if (!isOnlineMode() || isSyncing) return { success: false, count: 0 };
-        isSyncing = true;
-        showSyncIndicator(true);
-
-        try {
-            const data = await getCloudData();
-
-            if (!data || !data.success || !Array.isArray(data.transactions)) {
-                throw new Error('Invalid Google Sheets response');
-            }
-
-            transactions = normalizeTransactions(data.transactions);
-            incomeSplits = normalizeSplits(data.splits);
-
-            // حفظ نسخة محلية أيضاً
-            saveTransactionsLocal();
-            saveIncomeSplitsLocal();
-
-            updateHome();
-            if (document.querySelector('#page-analytics.active')) {
-                updateAnalytics();
-            }
-
-            updateConnectionStatus();
-            return { success: true, count: transactions.length };
-        } catch (error) {
-            console.warn('فشل المزامنة مع السحابة، استخدام البيانات المحلية:', error);
-            showToast('تعذر تحميل البيانات من Google Sheets');
-            return { success: false, count: 0 };
-        } finally {
-            isSyncing = false;
-            showSyncIndicator(false);
-        }
-    }
-
-    async function pushToCloud(action, data) {
-        if (!isOnlineMode()) return;
-
-        try {
-            incomeSplits = calculateCurrentWalletSplits();
-            saveIncomeSplitsLocal();
-            const body = new URLSearchParams({
-                action: 'saveAll',
-                transactions: JSON.stringify(transactions),
-                splits: JSON.stringify(incomeSplits),
-            });
-
-            await fetch(appsScriptUrl, {
-                method: 'POST',
-                mode: 'no-cors',
-                body,
-            });
-            updateConnectionStatus();
-            return { success: true };
-        } catch (error) {
-            console.warn('فشل الإرسال إلى السحابة:', error);
-            showToast('⚠️ تم الحفظ محلياً فقط');
-        }
-    }
-
-    function getCloudData() {
-        return getCloudDataJsonp()
-            .catch(() => getCloudDataFrame());
-    }
-
-    function getCloudDataJsonp() {
-        return new Promise((resolve, reject) => {
-            const callbackName = `walletCloudCallback_${Date.now()}`;
-            const script = document.createElement('script');
-            const separator = appsScriptUrl.includes('?') ? '&' : '?';
-            const timeout = setTimeout(() => {
-                cleanup();
-                reject(new Error('Google Sheets JSONP timeout'));
-            }, 7000);
-
-            function cleanup() {
-                clearTimeout(timeout);
-                delete window[callbackName];
-                script.remove();
-            }
-
-            window[callbackName] = (data) => {
-                cleanup();
-                resolve(data);
-            };
-
-            script.onerror = () => {
-                cleanup();
-                reject(new Error('Google Sheets JSONP failed'));
-            };
-
-            script.src = `${appsScriptUrl}${separator}action=getAll&callback=${callbackName}`;
-            document.body.appendChild(script);
-        });
-    }
-
-    function getCloudDataFrame() {
-        return new Promise((resolve, reject) => {
-            const iframe = document.createElement('iframe');
-            const separator = appsScriptUrl.includes('?') ? '&' : '?';
-            const timeout = setTimeout(() => {
-                cleanup();
-                reject(new Error('Google Sheets frame timeout'));
-            }, 10000);
-
-            function cleanup() {
-                clearTimeout(timeout);
-                window.removeEventListener('message', handleMessage);
-                iframe.remove();
-            }
-
-            function handleMessage(event) {
-                const data = event.data;
-                if (!data || data.source !== 'expense-tracker-google-sheets') return;
-                cleanup();
-                resolve(data.payload);
-            }
-
-            window.addEventListener('message', handleMessage);
-            iframe.hidden = true;
-            iframe.src = `${appsScriptUrl}${separator}action=getAll&mode=frame&t=${Date.now()}`;
-            document.body.appendChild(iframe);
-        });
-    }
-
-    function normalizeTransactions(items) {
-        return items.map(item => ({
-            ...item,
-            amount: Number(item.amount || 0),
-            description: item.description || item.note || '',
-            date: item.date || new Date().toISOString().split('T')[0],
-            createdAt: Number(item.createdAt || Date.now()),
-        }));
-    }
-
-    function normalizeSplits(value) {
-        return {
-            savings: Number(value && value.savings || 0),
-            expenses: Number(value && value.expenses || 0),
-            emergency: Number(value && value.emergency || 0),
-        };
-    }
-
-    function showSyncIndicator(show) {
-        const indicator = document.getElementById('sync-indicator');
-        if (indicator) {
-            indicator.classList.toggle('visible', show);
-        }
-    }
-
-    // ==========================================
-    // LOCAL STORAGE (نسخة احتياطية)
-    // ==========================================
-    function loadTransactions() {
-        try {
-            const data = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
-            return data ? JSON.parse(data) : [];
-        } catch {
-            return [];
-        }
-    }
-
-    function saveTransactionsLocal() {
-        localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(transactions));
-    }
-
-    function saveTransactions() {
-        saveTransactionsLocal();
-    }
-
-    function loadIncomeSplits() {
-        try {
-            const data = localStorage.getItem(STORAGE_KEYS.INCOME_SPLITS);
-            return data ? JSON.parse(data) : { savings: 0, expenses: 0, emergency: 0 };
-        } catch {
-            return { savings: 0, expenses: 0, emergency: 0 };
-        }
-    }
-
-    function saveIncomeSplitsLocal() {
-        localStorage.setItem(STORAGE_KEYS.INCOME_SPLITS, JSON.stringify(incomeSplits));
-    }
-
-    function saveIncomeSplits() {
-        saveIncomeSplitsLocal();
-    }
-
     function loadCurrency() {
         return localStorage.getItem(STORAGE_KEYS.CURRENCY) || 'د.ل';
     }
 
     function saveCurrency() {
         localStorage.setItem(STORAGE_KEYS.CURRENCY, currency);
-    }
-
-    function loadSheetUrl() {
-        return localStorage.getItem(STORAGE_KEYS.SHEET_URL) || '';
-    }
-
-    function saveSheetUrl() {
-        localStorage.setItem(STORAGE_KEYS.SHEET_URL, appsScriptUrl);
     }
 
     async function initializeFinancialData() {
@@ -1169,10 +963,6 @@
         settingsModal: $('#settings-modal'),
         closeSettings: $('#close-settings'),
         currencySelect: $('#currency-select'),
-        sheetUrlInput: $('#sheet-url-input'),
-        saveSheetUrlBtn: $('#save-sheet-url-btn'),
-        cloudSyncBtn: $('#cloud-sync-btn'),
-        connectionStatus: $('#connection-status'),
         clearDataBtn: $('#clear-data-btn'),
         accountEmail: $('#account-email'),
         logoutBtn: $('#logout-btn'),
@@ -1264,12 +1054,6 @@
 
         // Set currency select
         dom.currencySelect.value = currency;
-        if (dom.sheetUrlInput) {
-            dom.sheetUrlInput.value = appsScriptUrl;
-        }
-
-        // Update connection status
-        updateConnectionStatus();
         hideToast();
 
         // Bind events
@@ -1997,19 +1781,6 @@
         updateHome();
     }
 
-    function updateConnectionStatus() {
-        const statusEl = dom.connectionStatus || document.getElementById('connection-status');
-        if (statusEl) {
-            if (isOnlineMode()) {
-                statusEl.textContent = 'متصل بـ Google Sheets';
-                statusEl.className = 'connection-status online';
-            } else {
-                statusEl.textContent = 'وضع محلي. أضف رابط Web App لتفعيل الحفظ السحابي.';
-                statusEl.className = 'connection-status offline';
-            }
-        }
-    }
-
     // ==========================================
     // EVENT BINDINGS
     // ==========================================
@@ -2190,18 +1961,6 @@
             updateAnalytics();
         });
 
-        if (dom.saveSheetUrlBtn) {
-            dom.saveSheetUrlBtn.addEventListener('click', () => {
-                showToast('تم إيقاف Google Sheets. البيانات المالية محفوظة في Supabase الآن.');
-            });
-        }
-
-        if (dom.cloudSyncBtn) {
-            dom.cloudSyncBtn.addEventListener('click', () => {
-                showToast('تم إيقاف Google Sheets. البيانات المالية محفوظة في Supabase الآن.');
-            });
-        }
-
         if (dom.openBannerAdminBtn) {
             dom.openBannerAdminBtn.addEventListener('click', openBannerAdminModal);
         }
@@ -2338,13 +2097,6 @@
             navigateTo('analytics');
         });
 
-        // Sync button
-        const syncBtn = document.getElementById('sync-btn');
-        if (syncBtn) {
-            syncBtn.addEventListener('click', () => {
-                showToast('تم إيقاف Google Sheets. البيانات المالية محفوظة في Supabase الآن.');
-            });
-        }
     }
 
     // ==========================================
