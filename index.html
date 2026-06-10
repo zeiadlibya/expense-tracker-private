@@ -19,7 +19,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=25">
+    <link rel="stylesheet" href="style.css?v=26">
 </head>
 <body>
     <!-- Supabase Authentication -->
@@ -47,6 +47,10 @@
                 <div id="auth-message" class="auth-message" aria-live="polite"></div>
                 <button id="auth-login-btn" class="auth-primary-btn" type="submit">تسجيل الدخول</button>
                 <button id="auth-signup-btn" class="auth-secondary-btn" type="button">إنشاء حساب</button>
+                <button id="auth-google-btn" class="auth-google-btn" type="button">
+                    <span class="google-mark" aria-hidden="true">G</span>
+                    <span>تسجيل الدخول باستخدام Google</span>
+                </button>
             </form>
         </div>
     </div>
@@ -803,6 +807,6 @@
 
     </div>
 
-    <script src="app.js?v=25"></script>
+    <script src="app.js?v=26"></script>
 </body>
 </html>

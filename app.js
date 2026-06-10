@@ -877,6 +877,7 @@
         authPassword: $('#auth-password'),
         authLoginBtn: $('#auth-login-btn'),
         authSignupBtn: $('#auth-signup-btn'),
+        authGoogleBtn: $('#auth-google-btn'),
         authMessage: $('#auth-message'),
         splash: $('#splash-screen'),
         app: $('#app'),
@@ -1087,6 +1088,10 @@
             updateAuthMode(authMode === 'login' ? 'signup' : 'login');
         });
 
+        if (dom.authGoogleBtn) {
+            dom.authGoogleBtn.addEventListener('click', signInWithGoogle);
+        }
+
         dom.logoutBtn.addEventListener('click', () => {
             signOutUser();
         });
@@ -1230,6 +1235,31 @@
         } catch (error) {
             setAuthMessage(translateAuthError(error), 'error');
         } finally {
+            setAuthLoading(false);
+        }
+    }
+
+    async function signInWithGoogle() {
+        if (!supabaseClient) {
+            setAuthMessage('تعذر تسجيل الدخول باستخدام Google', 'error');
+            return;
+        }
+
+        setAuthLoading(true);
+        setAuthMessage('');
+
+        try {
+            const { error } = await supabaseClient.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: window.location.origin + window.location.pathname,
+                },
+            });
+
+            if (error) throw error;
+        } catch (error) {
+            console.error('Google login failed:', error);
+            setAuthMessage('تعذر تسجيل الدخول باستخدام Google', 'error');
             setAuthLoading(false);
         }
     }
@@ -1742,7 +1772,7 @@
     }
 
     function setAuthLoading(isLoading) {
-        [dom.authLoginBtn, dom.authSignupBtn].forEach((btn) => {
+        [dom.authLoginBtn, dom.authSignupBtn, dom.authGoogleBtn].forEach((btn) => {
             if (!btn) return;
             btn.disabled = isLoading;
         });
@@ -3169,7 +3199,7 @@
         if (!('serviceWorker' in navigator)) return;
 
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js?v=25', { scope: './' })
+            navigator.serviceWorker.register('./sw.js?v=26', { scope: './' })
                 .then((registration) => {
                     registration.update();
                 })

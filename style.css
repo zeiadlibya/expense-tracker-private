@@ -317,6 +317,7 @@ button {
 
 .auth-primary-btn,
 .auth-secondary-btn,
+.auth-google-btn,
 .logout-btn {
     width: 100%;
     min-height: 50px;
@@ -336,8 +337,33 @@ button {
     border: 1px solid var(--border-color);
 }
 
+.auth-google-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.google-mark {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    color: #1f2937;
+    font-family: Arial, sans-serif;
+    font-size: 0.9rem;
+    font-weight: 800;
+}
+
 .auth-primary-btn:disabled,
-.auth-secondary-btn:disabled {
+.auth-secondary-btn:disabled,
+.auth-google-btn:disabled {
     opacity: 0.65;
     cursor: progress;
 }
