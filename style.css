@@ -791,6 +791,24 @@ button {
     font-weight: 800;
 }
 
+.wallet-action-buttons {
+    display: flex;
+    flex-shrink: 0;
+    gap: var(--space-sm);
+}
+
+@media (max-width: 420px) {
+    .distribution-summary-card {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .wallet-action-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
 /* ============================================
    PAYMENT METHOD CARDS
    ============================================ */
@@ -1236,6 +1254,67 @@ button {
     border-color: var(--income-green);
     color: var(--text-primary);
     background: var(--income-green-bg);
+}
+
+.muted-control {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+.split-expense-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    min-height: 46px;
+    padding: 0 var(--space-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.split-expense-toggle input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent-purple);
+}
+
+.split-expense-panel {
+    display: grid;
+    gap: var(--space-sm);
+    margin-top: var(--space-sm);
+    padding: var(--space-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.split-wallet-field {
+    display: grid;
+    grid-template-columns: 92px 1fr;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.split-wallet-field span {
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.split-wallet-field input {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    padding: 0 var(--space-md);
+    direction: ltr;
+    text-align: left;
+    font: inherit;
 }
 
 /* Split Controls */
@@ -2013,6 +2092,21 @@ button {
     text-align: center;
     font: inherit;
     font-weight: 800;
+}
+
+.distribution-field select {
+    min-width: 150px;
+}
+
+.distribution-field-stack {
+    align-items: stretch;
+    flex-direction: column;
+}
+
+.distribution-field-stack input {
+    width: 100%;
+    text-align: right;
+    direction: rtl;
 }
 
 .distribution-field input:focus {

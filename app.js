@@ -490,8 +490,32 @@
         if (incomeResult.error) throw incomeResult.error;
         if (expenseResult.error) throw expenseResult.error;
 
+        const expenseIds = (expenseResult.data || []).map((row) => row.id);
+        let splitRows = [];
+        if (expenseIds.length > 0) {
+            const splitResult = await supabaseClient
+                .from('transaction_wallet_splits')
+                .select('transaction_id, source_wallet, amount')
+                .eq('user_id', userId)
+                .in('transaction_id', expenseIds);
+
+            if (splitResult.error) throw splitResult.error;
+            splitRows = splitResult.data || [];
+        }
+
+        const splitsByTransaction = splitRows.reduce((map, row) => {
+            if (!map.has(row.transaction_id)) map.set(row.transaction_id, []);
+            map.get(row.transaction_id).push({
+                source_wallet: row.source_wallet,
+                amount: Number(row.amount || 0),
+            });
+            return map;
+        }, new Map());
+
         const incomes = (incomeResult.data || []).map(normalizeIncomeRecord);
-        const expenses = (expenseResult.data || []).map(normalizeExpenseRecord);
+        const expenses = (expenseResult.data || []).map((row) => (
+            normalizeExpenseRecord(row, splitsByTransaction.get(row.id) || [])
+        ));
 
         transactions = [...incomes, ...expenses]
             .sort((a, b) => getCreatedTime(b) - getCreatedTime(a));
@@ -533,7 +557,7 @@
         };
     }
 
-    function normalizeExpenseRecord(row) {
+    function normalizeExpenseRecord(row, walletSplits = []) {
         return {
             id: row.id,
             type: 'expense',
@@ -541,6 +565,7 @@
             description: row.note || '',
             category: row.category || 'food',
             sourceWallet: row.source_wallet || 'expenses',
+            walletSplits,
             paymentMethod: row.payment_method || 'cash',
             date: row.transaction_date,
             createdAt: row.created_at,
@@ -613,6 +638,7 @@
         emergencyAmount: $('#emergency-amount'),
         distributionSummary: $('#distribution-summary'),
         editDistributionBtn: $('#edit-distribution-btn'),
+        openTransferBtn: $('#open-transfer-btn'),
         cashTotal: $('#cash-total'),
         cardTotal: $('#card-total'),
         recentTransactions: $('#recent-transactions'),
@@ -626,6 +652,12 @@
         categoryLabels: $('#category-labels'),
         paymentToggle: $('#payment-toggle'),
         sourceWalletToggle: $('#source-wallet-toggle'),
+        splitExpenseCheckbox: $('#split-expense-checkbox'),
+        splitExpensePanel: $('#split-expense-panel'),
+        splitExpensesAmount: $('#split-expenses-amount'),
+        splitSavingsAmount: $('#split-savings-amount'),
+        splitEmergencyAmount: $('#split-emergency-amount'),
+        splitExpenseError: $('#split-expense-error'),
         addExpenseBtn: $('#add-expense-btn'),
 
         // Income Form
@@ -684,6 +716,18 @@
         distributionEmergency: $('#distribution-emergency'),
         distributionError: $('#distribution-error'),
 
+        // Transfer modal
+        transferModal: $('#transfer-modal'),
+        closeTransfer: $('#close-transfer'),
+        cancelTransfer: $('#cancel-transfer'),
+        saveTransferBtn: $('#save-transfer-btn'),
+        transferFromWallet: $('#transfer-from-wallet'),
+        transferToWallet: $('#transfer-to-wallet'),
+        transferAmount: $('#transfer-amount'),
+        transferNote: $('#transfer-note'),
+        transferDate: $('#transfer-date'),
+        transferError: $('#transfer-error'),
+
         // Delete modal
         deleteModal: $('#delete-modal'),
         cancelDelete: $('#cancel-delete'),
@@ -704,6 +748,9 @@
         const todayStr = today.toISOString().split('T')[0];
         dom.expenseDate.value = todayStr;
         dom.incomeDate.value = todayStr;
+        if (dom.transferDate) {
+            dom.transferDate.value = todayStr;
+        }
 
         // Set currency select
         dom.currencySelect.value = currency;
@@ -966,6 +1013,66 @@
         });
     }
 
+    function getWalletBalanceKey(wallet) {
+        return `${wallet}_balance`;
+    }
+
+    function getWalletBalance(wallet) {
+        return Number(walletBalances[getWalletBalanceKey(wallet)] || 0);
+    }
+
+    function resetSplitExpenseFields() {
+        if (dom.splitExpensesAmount) dom.splitExpensesAmount.value = '';
+        if (dom.splitSavingsAmount) dom.splitSavingsAmount.value = '';
+        if (dom.splitEmergencyAmount) dom.splitEmergencyAmount.value = '';
+        if (dom.splitExpenseError) dom.splitExpenseError.textContent = '';
+    }
+
+    function getSplitExpenseParts(totalAmount) {
+        const isSplit = dom.splitExpenseCheckbox && dom.splitExpenseCheckbox.checked;
+        if (!isSplit) {
+            const activeWallet = dom.sourceWalletToggle
+                ? dom.sourceWalletToggle.querySelector('.wallet-btn.active')
+                : null;
+            const sourceWallet = activeWallet ? activeWallet.dataset.wallet : 'expenses';
+            return [{ source_wallet: sourceWallet, amount: totalAmount }];
+        }
+
+        const parts = [
+            { source_wallet: 'expenses', amount: Number(dom.splitExpensesAmount.value || 0) },
+            { source_wallet: 'savings', amount: Number(dom.splitSavingsAmount.value || 0) },
+            { source_wallet: 'emergency', amount: Number(dom.splitEmergencyAmount.value || 0) },
+        ].filter((part) => part.amount > 0);
+
+        const sum = parts.reduce((total, part) => total + part.amount, 0);
+        const roundedSum = Number(sum.toFixed(2));
+        const roundedAmount = Number(totalAmount.toFixed(2));
+
+        if (parts.length === 0 || roundedSum !== roundedAmount) {
+            throw new Error('split_sum_invalid');
+        }
+
+        return parts;
+    }
+
+    function validateWalletParts(parts) {
+        for (const part of parts) {
+            if (part.amount > getWalletBalance(part.source_wallet)) {
+                throw new Error('wallet_balance_insufficient');
+            }
+        }
+    }
+
+    function applyExpensePartsToBalances(parts, totalAmount) {
+        const nextBalances = { ...walletBalances };
+        parts.forEach((part) => {
+            const key = getWalletBalanceKey(part.source_wallet);
+            nextBalances[key] = Number(nextBalances[key] || 0) - Number(part.amount || 0);
+        });
+        nextBalances.total_spent = Number(nextBalances.total_spent || 0) + totalAmount;
+        return nextBalances;
+    }
+
     function openDistributionModal() {
         if (!dom.distributionModal) return;
         dom.distributionExpenses.value = userSettings.expenses_percentage;
@@ -1009,6 +1116,78 @@
             dom.distributionError.textContent = 'تعذر حفظ النسب. حاول مرة أخرى.';
         } finally {
             dom.saveDistributionBtn.disabled = false;
+        }
+    }
+
+    function openTransferModal() {
+        if (!dom.transferModal) return;
+        if (dom.transferFromWallet) dom.transferFromWallet.value = 'expenses';
+        if (dom.transferToWallet) dom.transferToWallet.value = 'savings';
+        if (dom.transferAmount) dom.transferAmount.value = '';
+        if (dom.transferNote) dom.transferNote.value = '';
+        if (dom.transferDate) dom.transferDate.value = new Date().toISOString().split('T')[0];
+        if (dom.transferError) dom.transferError.textContent = '';
+        dom.transferModal.classList.add('active');
+    }
+
+    function closeTransferModal() {
+        if (!dom.transferModal) return;
+        dom.transferModal.classList.remove('active');
+    }
+
+    async function handleWalletTransfer() {
+        const fromWallet = dom.transferFromWallet.value;
+        const toWallet = dom.transferToWallet.value;
+        const amount = Number(dom.transferAmount.value || 0);
+
+        if (!amount || amount <= 0) {
+            dom.transferError.textContent = 'أدخل مبلغ صحيح للتحويل';
+            return;
+        }
+
+        if (fromWallet === toWallet) {
+            dom.transferError.textContent = 'لا يمكن التحويل إلى نفس المحفظة';
+            return;
+        }
+
+        if (amount > getWalletBalance(fromWallet)) {
+            dom.transferError.textContent = 'الرصيد غير كافٍ في المحفظة المحددة';
+            return;
+        }
+
+        try {
+            dom.saveTransferBtn.disabled = true;
+            const userId = requireFinancialUser();
+            const transferDate = dom.transferDate.value || new Date().toISOString().split('T')[0];
+
+            const { error } = await supabaseClient
+                .from('wallet_transfers')
+                .insert({
+                    user_id: userId,
+                    from_wallet: fromWallet,
+                    to_wallet: toWallet,
+                    amount,
+                    note: dom.transferNote.value.trim(),
+                    transfer_date: transferDate,
+                });
+
+            if (error) throw error;
+
+            await saveWalletBalances({
+                ...walletBalances,
+                [getWalletBalanceKey(fromWallet)]: getWalletBalance(fromWallet) - amount,
+                [getWalletBalanceKey(toWallet)]: getWalletBalance(toWallet) + amount,
+            });
+
+            updateHome();
+            updateAnalytics();
+            closeTransferModal();
+            showToast('تم تحويل المبلغ بنجاح');
+        } catch (error) {
+            console.error('Failed to transfer wallet balance:', error);
+            dom.transferError.textContent = 'تعذر حفظ التحويل. حاول مرة أخرى.';
+        } finally {
+            dom.saveTransferBtn.disabled = false;
         }
     }
 
@@ -1131,6 +1310,19 @@
             });
         }
 
+        if (dom.splitExpenseCheckbox) {
+            dom.splitExpenseCheckbox.addEventListener('change', () => {
+                const isSplit = dom.splitExpenseCheckbox.checked;
+                dom.splitExpensePanel.classList.toggle('hidden', !isSplit);
+                if (dom.sourceWalletToggle) {
+                    dom.sourceWalletToggle.classList.toggle('muted-control', isSplit);
+                }
+                if (!isSplit) {
+                    resetSplitExpenseFields();
+                }
+            });
+        }
+
         // Add expense
         dom.addExpenseBtn.addEventListener('click', addExpense);
 
@@ -1139,6 +1331,10 @@
 
         if (dom.editDistributionBtn) {
             dom.editDistributionBtn.addEventListener('click', openDistributionModal);
+        }
+
+        if (dom.openTransferBtn) {
+            dom.openTransferBtn.addEventListener('click', openTransferModal);
         }
 
         if (dom.closeDistribution) {
@@ -1157,6 +1353,24 @@
 
         if (dom.saveDistributionBtn) {
             dom.saveDistributionBtn.addEventListener('click', handleSaveDistribution);
+        }
+
+        if (dom.closeTransfer) {
+            dom.closeTransfer.addEventListener('click', closeTransferModal);
+        }
+
+        if (dom.cancelTransfer) {
+            dom.cancelTransfer.addEventListener('click', closeTransferModal);
+        }
+
+        if (dom.transferModal) {
+            dom.transferModal.addEventListener('click', (e) => {
+                if (e.target === dom.transferModal) closeTransferModal();
+            });
+        }
+
+        if (dom.saveTransferBtn) {
+            dom.saveTransferBtn.addEventListener('click', handleWalletTransfer);
         }
 
         // Analytics month navigation
@@ -1322,26 +1536,38 @@
 
         const activeCategory = dom.categoryLabels.querySelector('.label-btn.active');
         const activePayment = dom.paymentToggle.querySelector('.payment-btn.active');
-        const activeWallet = dom.sourceWalletToggle
-            ? dom.sourceWalletToggle.querySelector('.wallet-btn.active')
-            : null;
-        const sourceWallet = activeWallet ? activeWallet.dataset.wallet : 'expenses';
-        const currentBalance = Number(walletBalances[`${sourceWallet}_balance`] || 0);
+        let walletParts = [];
+        try {
+            walletParts = getSplitExpenseParts(amount);
+            validateWalletParts(walletParts);
+            if (dom.splitExpenseError) dom.splitExpenseError.textContent = '';
+        } catch (error) {
+            if (error.message === 'split_sum_invalid') {
+                if (dom.splitExpenseError) {
+                    dom.splitExpenseError.textContent = 'يجب أن يساوي مجموع التقسيم مبلغ المصروف';
+                }
+                showToast('مجموع التقسيم غير مطابق للمبلغ');
+                return;
+            }
 
-        if (amount > currentBalance) {
-            showToast('الرصيد غير كافٍ في هذه الخانة');
-            return;
+            if (error.message === 'wallet_balance_insufficient') {
+                showToast('الرصيد غير كافٍ في هذه الخانة');
+                return;
+            }
+
+            throw error;
         }
 
         const userId = requireFinancialUser();
         const expenseDate = dom.expenseDate.value || new Date().toISOString().split('T')[0];
         const category = activeCategory ? activeCategory.dataset.category : 'food';
         const paymentMethod = activePayment ? activePayment.dataset.method : 'cash';
+        const sourceWallet = walletParts[0] ? walletParts[0].source_wallet : 'expenses';
 
         try {
             dom.addExpenseBtn.disabled = true;
 
-            const { error } = await supabaseClient
+            const { data: insertedTransaction, error } = await supabaseClient
                 .from('transactions')
                 .insert({
                     user_id: userId,
@@ -1351,22 +1577,38 @@
                     payment_method: paymentMethod,
                     note: dom.expenseDesc.value.trim(),
                     transaction_date: expenseDate,
-                });
+                })
+                .select('id')
+                .single();
 
             if (error) throw error;
 
-            const nextBalances = {
-                ...walletBalances,
-                [`${sourceWallet}_balance`]: currentBalance - amount,
-                total_spent: Number(walletBalances.total_spent || 0) + amount,
-            };
+            if (walletParts.length > 1) {
+                const splitPayload = walletParts.map((part) => ({
+                    transaction_id: insertedTransaction.id,
+                    user_id: userId,
+                    source_wallet: part.source_wallet,
+                    amount: part.amount,
+                }));
 
-            await saveWalletBalances(nextBalances);
+                const { error: splitError } = await supabaseClient
+                    .from('transaction_wallet_splits')
+                    .insert(splitPayload);
+
+                if (splitError) throw splitError;
+            }
+
+            await saveWalletBalances(applyExpensePartsToBalances(walletParts, amount));
             await loadRecentRecords();
             updateHome();
 
             dom.expenseAmount.value = '';
             dom.expenseDesc.value = '';
+            if (dom.splitExpenseCheckbox) {
+                dom.splitExpenseCheckbox.checked = false;
+                dom.splitExpensePanel.classList.add('hidden');
+            }
+            resetSplitExpenseFields();
 
             showToast('تمت إضافة المصروف بنجاح');
             setTimeout(() => navigateTo('home'), 500);
@@ -1468,12 +1710,17 @@
 
                 if (error) throw error;
 
-                const sourceWallet = tx.sourceWallet || 'expenses';
-                await saveWalletBalances({
-                    ...walletBalances,
-                    [`${sourceWallet}_balance`]: Number(walletBalances[`${sourceWallet}_balance`] || 0) + Number(tx.amount || 0),
-                    total_spent: Math.max(0, Number(walletBalances.total_spent || 0) - Number(tx.amount || 0)),
+                const refundParts = tx.walletSplits && tx.walletSplits.length
+                    ? tx.walletSplits
+                    : [{ source_wallet: tx.sourceWallet || 'expenses', amount: Number(tx.amount || 0) }];
+                const nextBalances = { ...walletBalances };
+                refundParts.forEach((part) => {
+                    const key = getWalletBalanceKey(part.source_wallet);
+                    nextBalances[key] = Number(nextBalances[key] || 0) + Number(part.amount || 0);
                 });
+                nextBalances.total_spent = Math.max(0, Number(walletBalances.total_spent || 0) - Number(tx.amount || 0));
+
+                await saveWalletBalances(nextBalances);
             }
 
             await loadRecentRecords();
@@ -1586,7 +1833,9 @@
             const cat = CATEGORIES[tx.category] || CATEGORIES.food;
             const paymentLabel = tx.paymentMethod === 'cash' ? 'كاش' : 'بطاقة';
             const paymentClass = tx.paymentMethod === 'cash' ? 'badge-cash' : 'badge-card';
-            const walletLabel = WALLET_LABELS[tx.sourceWallet] || WALLET_LABELS.expenses;
+            const walletLabel = tx.walletSplits && tx.walletSplits.length
+                ? 'مقسم'
+                : (WALLET_LABELS[tx.sourceWallet] || WALLET_LABELS.expenses);
             const dateFormatted = formatDate(tx.date);
 
             div.innerHTML = `

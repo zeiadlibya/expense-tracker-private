@@ -160,7 +160,10 @@
                     </div>
                     <div class="distribution-summary-card">
                         <p id="distribution-summary">توزيع الدخل الحالي: 50% مصروفات - 30% ادخار - 20% طوارئ</p>
-                        <button id="edit-distribution-btn" type="button">تعديل توزيع الدخل</button>
+                        <div class="wallet-action-buttons">
+                            <button id="edit-distribution-btn" type="button">تعديل توزيع الدخل</button>
+                            <button id="open-transfer-btn" type="button">تحويل بين المحافظ</button>
+                        </div>
                     </div>
 
                     <!-- Payment Method Totals -->
@@ -281,6 +284,29 @@
                                 <button class="wallet-btn active" type="button" data-wallet="expenses">المصروفات</button>
                                 <button class="wallet-btn" type="button" data-wallet="savings">الادخار</button>
                                 <button class="wallet-btn" type="button" data-wallet="emergency">الطوارئ</button>
+                            </div>
+                        </div>
+
+                        <!-- Split Expense -->
+                        <div class="form-group">
+                            <label class="split-expense-toggle">
+                                <input id="split-expense-checkbox" type="checkbox">
+                                <span>تقسيم المصروف على أكثر من محفظة</span>
+                            </label>
+                            <div class="split-expense-panel hidden" id="split-expense-panel">
+                                <label class="split-wallet-field">
+                                    <span>المصروفات</span>
+                                    <input id="split-expenses-amount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
+                                </label>
+                                <label class="split-wallet-field">
+                                    <span>الادخار</span>
+                                    <input id="split-savings-amount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
+                                </label>
+                                <label class="split-wallet-field">
+                                    <span>الطوارئ</span>
+                                    <input id="split-emergency-amount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
+                                </label>
+                                <div id="split-expense-error" class="distribution-error" aria-live="polite"></div>
                             </div>
                         </div>
 
@@ -549,6 +575,55 @@
             </div>
         </div>
 
+        <!-- Wallet Transfer Modal -->
+        <div class="modal-overlay" id="transfer-modal">
+            <div class="modal-card modal-card-small">
+                <div class="modal-header">
+                    <h3>تحويل بين المحافظ</h3>
+                    <button class="modal-close" id="close-transfer" type="button">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="distribution-form">
+                        <label class="distribution-field">
+                            <span>من محفظة</span>
+                            <select id="transfer-from-wallet" class="setting-select">
+                                <option value="expenses">المصروفات</option>
+                                <option value="savings">الادخار</option>
+                                <option value="emergency">الطوارئ</option>
+                            </select>
+                        </label>
+                        <label class="distribution-field">
+                            <span>إلى محفظة</span>
+                            <select id="transfer-to-wallet" class="setting-select">
+                                <option value="savings">الادخار</option>
+                                <option value="expenses">المصروفات</option>
+                                <option value="emergency">الطوارئ</option>
+                            </select>
+                        </label>
+                        <label class="distribution-field">
+                            <span>المبلغ</span>
+                            <input id="transfer-amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+                        </label>
+                        <label class="distribution-field distribution-field-stack">
+                            <span>ملاحظة</span>
+                            <input id="transfer-note" type="text" placeholder="اختياري">
+                        </label>
+                        <label class="distribution-field">
+                            <span>التاريخ</span>
+                            <input id="transfer-date" type="date">
+                        </label>
+                        <div id="transfer-error" class="distribution-error" aria-live="polite"></div>
+                        <div class="modal-actions">
+                            <button class="modal-btn cancel-btn" id="cancel-transfer" type="button">إلغاء</button>
+                            <button class="modal-btn save-distribution-btn" id="save-transfer-btn" type="button">حفظ التحويل</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Delete Confirmation Modal -->
         <div class="modal-overlay" id="delete-modal">
             <div class="modal-card modal-card-small">
@@ -567,6 +642,6 @@
 
     </div>
 
-    <script src="app.js?v=12"></script>
+    <script src="app.js?v=13"></script>
 </body>
 </html>
