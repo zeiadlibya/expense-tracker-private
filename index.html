@@ -101,6 +101,12 @@
             <!-- ==================== HOME PAGE ==================== -->
             <section id="page-home" class="page active">
                 <div class="page-scroll">
+                    <!-- Advertising Banner -->
+                    <div class="banner-slider hidden" id="banner-slider" aria-label="إعلانات">
+                        <div class="banner-track" id="banner-track"></div>
+                        <div class="banner-dots" id="banner-dots" aria-label="شرائح الإعلان"></div>
+                    </div>
+
                     <!-- Total Balance Card -->
                     <div class="balance-card" id="balance-card">
                         <div class="balance-card-bg"></div>
@@ -405,6 +411,41 @@
                         </div>
                     </div>
 
+                    <div class="analytics-log-panel">
+                        <div class="section-title">
+                            <h3>سجل العمليات</h3>
+                        </div>
+                        <div class="record-filter-tabs" id="record-filter-tabs">
+                            <button class="record-filter-btn active" type="button" data-filter="month">هذا الشهر</button>
+                            <button class="record-filter-btn" type="button" data-filter="today">اليوم</button>
+                            <button class="record-filter-btn" type="button" data-filter="lastMonth">الشهر الماضي</button>
+                            <button class="record-filter-btn" type="button" data-filter="custom">فترة مخصصة</button>
+                        </div>
+                        <div class="custom-filter-row hidden" id="custom-filter-row">
+                            <input id="filter-from-date" class="text-input date-input" type="date">
+                            <input id="filter-to-date" class="text-input date-input" type="date">
+                        </div>
+                        <div class="monthly-summary">
+                            <div>
+                                <span>دخل الفترة</span>
+                                <strong id="period-income">0.00</strong>
+                            </div>
+                            <div>
+                                <span>مصروف الفترة</span>
+                                <strong id="period-expenses">0.00</strong>
+                            </div>
+                            <div>
+                                <span>صافي المتبقي</span>
+                                <strong id="period-net">0.00</strong>
+                            </div>
+                            <div>
+                                <span>أكثر تصنيف</span>
+                                <strong id="top-category">لا يوجد</strong>
+                            </div>
+                        </div>
+                        <div class="transactions-list analytics-records-list" id="analytics-records-list"></div>
+                    </div>
+
                     <!-- Expense by Category Chart -->
                     <div class="chart-card">
                         <h3 class="chart-title">المصروفات حسب النوع</h3>
@@ -640,8 +681,55 @@
             </div>
         </div>
 
+        <!-- Edit Record Modal -->
+        <div class="modal-overlay" id="edit-record-modal">
+            <div class="modal-card modal-card-small">
+                <div class="modal-header">
+                    <h3 id="edit-record-title">تعديل العملية</h3>
+                    <button class="modal-close" id="close-edit-record" type="button">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="distribution-form">
+                        <label class="distribution-field">
+                            <span>المبلغ</span>
+                            <input id="edit-record-amount" type="number" inputmode="decimal" min="0" step="0.01">
+                        </label>
+                        <label class="distribution-field distribution-field-stack">
+                            <span>الوصف / الملاحظة</span>
+                            <input id="edit-record-note" type="text">
+                        </label>
+                        <label class="distribution-field">
+                            <span>التاريخ</span>
+                            <input id="edit-record-date" type="date">
+                        </label>
+                        <div id="edit-split-fields" class="split-expense-panel hidden">
+                            <label class="split-wallet-field">
+                                <span>المصروفات</span>
+                                <input id="edit-split-expenses" type="number" inputmode="decimal" step="0.01" min="0">
+                            </label>
+                            <label class="split-wallet-field">
+                                <span>الادخار</span>
+                                <input id="edit-split-savings" type="number" inputmode="decimal" step="0.01" min="0">
+                            </label>
+                            <label class="split-wallet-field">
+                                <span>الطوارئ</span>
+                                <input id="edit-split-emergency" type="number" inputmode="decimal" step="0.01" min="0">
+                            </label>
+                        </div>
+                        <div id="edit-record-error" class="distribution-error" aria-live="polite"></div>
+                        <div class="modal-actions">
+                            <button class="modal-btn cancel-btn" id="cancel-edit-record" type="button">إلغاء</button>
+                            <button class="modal-btn save-distribution-btn" id="save-edit-record" type="button">حفظ التعديل</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
-    <script src="app.js?v=13"></script>
+    <script src="app.js?v=15"></script>
 </body>
 </html>

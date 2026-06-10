@@ -99,6 +99,14 @@
     let appFlowStarted = false;
     let authMode = 'login';
     let authStateListenerAttached = false;
+    let recordFilterMode = 'month';
+    let editTargetId = null;
+    let banners = [];
+    let activeBannerIndex = 0;
+    let bannerAutoTimer = null;
+    let viewedBannerIds = new Set();
+    let bannerTouchStartX = 0;
+    let bannerTouchDeltaX = 0;
 
     // Chart instances
     let categoryChart = null;
@@ -321,6 +329,7 @@
         await loadUserSettings();
         await loadWalletBalances();
         await loadRecentRecords();
+        await loadActiveBanners();
         updateHome();
         updateAnalytics();
     }
@@ -472,7 +481,7 @@
         if (!supabaseClient) return transactions;
         const userId = requireFinancialUser();
 
-        const [incomeResult, expenseResult] = await Promise.all([
+        const [incomeResult, expenseResult, transferResult] = await Promise.all([
             supabaseClient
                 .from('incomes')
                 .select('id, amount, note, income_date, expenses_amount, savings_amount, emergency_amount, created_at')
@@ -485,10 +494,17 @@
                 .eq('user_id', userId)
                 .order('created_at', { ascending: false })
                 .limit(50),
+            supabaseClient
+                .from('wallet_transfers')
+                .select('id, from_wallet, to_wallet, amount, note, transfer_date, created_at')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+                .limit(50),
         ]);
 
         if (incomeResult.error) throw incomeResult.error;
         if (expenseResult.error) throw expenseResult.error;
+        if (transferResult.error) throw transferResult.error;
 
         const expenseIds = (expenseResult.data || []).map((row) => row.id);
         let splitRows = [];
@@ -516,11 +532,184 @@
         const expenses = (expenseResult.data || []).map((row) => (
             normalizeExpenseRecord(row, splitsByTransaction.get(row.id) || [])
         ));
+        const transfers = (transferResult.data || []).map(normalizeTransferRecord);
 
-        transactions = [...incomes, ...expenses]
+        transactions = [...incomes, ...expenses, ...transfers]
             .sort((a, b) => getCreatedTime(b) - getCreatedTime(a));
 
         return transactions;
+    }
+
+    async function loadActiveBanners() {
+        if (!supabaseClient || !authUser) return [];
+
+        try {
+            const nowIso = new Date().toISOString();
+            const { data, error } = await supabaseClient
+                .from('banners')
+                .select('id, title, image_url, target_url, sort_order, is_active, starts_at, ends_at')
+                .eq('is_active', true)
+                .order('sort_order', { ascending: true })
+                .limit(10);
+
+            if (error) throw error;
+
+            banners = (data || [])
+                .filter((banner) => {
+                    const startsOk = !banner.starts_at || banner.starts_at <= nowIso;
+                    const endsOk = !banner.ends_at || banner.ends_at >= nowIso;
+                    return banner.is_active && startsOk && endsOk && banner.image_url && banner.target_url;
+                })
+                .slice(0, 3);
+
+            renderBannerSlider();
+            return banners;
+        } catch (error) {
+            console.warn('Banner loading failed:', error);
+            banners = [];
+            renderBannerSlider();
+            return [];
+        }
+    }
+
+    function renderBannerSlider() {
+        if (!dom.bannerSlider || !dom.bannerTrack || !dom.bannerDots) return;
+
+        stopBannerAutoSlide();
+        activeBannerIndex = 0;
+        viewedBannerIds = new Set();
+
+        if (!banners.length) {
+            dom.bannerSlider.classList.add('hidden');
+            dom.bannerTrack.innerHTML = '';
+            dom.bannerDots.innerHTML = '';
+            return;
+        }
+
+        dom.bannerTrack.innerHTML = banners.map((banner, index) => `
+            <button class="banner-slide" type="button" data-index="${index}" aria-label="${escapeHTML(banner.title || 'إعلان')}">
+                <img src="${escapeHTML(banner.image_url)}" alt="${escapeHTML(banner.title || 'إعلان')}" loading="lazy">
+            </button>
+        `).join('');
+
+        dom.bannerDots.innerHTML = banners.map((_, index) => (
+            `<span class="banner-dot${index === 0 ? ' active' : ''}" data-index="${index}"></span>`
+        )).join('');
+
+        dom.bannerSlider.classList.remove('hidden');
+        updateBannerSlide(0);
+        bindBannerSlideEvents();
+        startBannerAutoSlide();
+    }
+
+    function bindBannerSlideEvents() {
+        dom.bannerTrack.querySelectorAll('.banner-slide').forEach((slide) => {
+            slide.addEventListener('click', () => {
+                const index = Number(slide.dataset.index || 0);
+                const banner = banners[index];
+                if (banner) trackBannerClick(banner.id, banner.target_url);
+            });
+
+            const img = slide.querySelector('img');
+            if (img) {
+                img.addEventListener('error', () => {
+                    slide.classList.add('image-error');
+                    img.remove();
+                });
+            }
+        });
+
+        dom.bannerTrack.addEventListener('touchstart', (event) => {
+            bannerTouchStartX = event.touches[0].clientX;
+            bannerTouchDeltaX = 0;
+        }, { passive: true });
+
+        dom.bannerTrack.addEventListener('touchmove', (event) => {
+            bannerTouchDeltaX = event.touches[0].clientX - bannerTouchStartX;
+        }, { passive: true });
+
+        dom.bannerTrack.addEventListener('touchend', () => {
+            if (Math.abs(bannerTouchDeltaX) < 40) return;
+            if (bannerTouchDeltaX < 0) {
+                updateBannerSlide(activeBannerIndex + 1);
+            } else {
+                updateBannerSlide(activeBannerIndex - 1);
+            }
+            startBannerAutoSlide();
+        });
+    }
+
+    function updateBannerSlide(nextIndex) {
+        if (!banners.length || !dom.bannerTrack) return;
+        activeBannerIndex = (nextIndex + banners.length) % banners.length;
+        dom.bannerTrack.style.transform = `translateX(-${activeBannerIndex * 100}%)`;
+        dom.bannerDots.querySelectorAll('.banner-dot').forEach((dot, index) => {
+            dot.classList.toggle('active', index === activeBannerIndex);
+        });
+        trackBannerView(banners[activeBannerIndex].id);
+    }
+
+    async function trackBannerView(bannerId) {
+        if (!bannerId || viewedBannerIds.has(bannerId) || !authUser || !supabaseClient) return;
+        viewedBannerIds.add(bannerId);
+
+        try {
+            const { error } = await supabaseClient
+                .from('banner_stats')
+                .insert({
+                    banner_id: bannerId,
+                    user_id: authUser.id,
+                    event_type: 'view',
+                });
+            if (error) throw error;
+        } catch (error) {
+            console.warn('Banner view tracking failed:', error);
+        }
+    }
+
+    async function trackBannerClick(bannerId, targetUrl) {
+        if (!targetUrl) return;
+
+        try {
+            if (bannerId && authUser && supabaseClient) {
+                const { error } = await supabaseClient
+                    .from('banner_stats')
+                    .insert({
+                        banner_id: bannerId,
+                        user_id: authUser.id,
+                        event_type: 'click',
+                    });
+                if (error) throw error;
+            }
+        } catch (error) {
+            console.warn('Banner click tracking failed:', error);
+        } finally {
+            window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        }
+    }
+
+    function startBannerAutoSlide() {
+        stopBannerAutoSlide();
+        if (banners.length <= 1) return;
+        bannerAutoTimer = setInterval(() => {
+            updateBannerSlide(activeBannerIndex + 1);
+        }, 4500);
+    }
+
+    function stopBannerAutoSlide() {
+        if (bannerAutoTimer) {
+            clearInterval(bannerAutoTimer);
+            bannerAutoTimer = null;
+        }
+    }
+
+    function escapeHTML(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 
     function normalizeUserSettings(settings = {}) {
@@ -568,6 +757,19 @@
             walletSplits,
             paymentMethod: row.payment_method || 'cash',
             date: row.transaction_date,
+            createdAt: row.created_at,
+        };
+    }
+
+    function normalizeTransferRecord(row) {
+        return {
+            id: row.id,
+            type: 'transfer',
+            amount: Number(row.amount || 0),
+            description: row.note || '',
+            fromWallet: row.from_wallet || 'expenses',
+            toWallet: row.to_wallet || 'savings',
+            date: row.transfer_date,
             createdAt: row.created_at,
         };
     }
@@ -639,6 +841,9 @@
         distributionSummary: $('#distribution-summary'),
         editDistributionBtn: $('#edit-distribution-btn'),
         openTransferBtn: $('#open-transfer-btn'),
+        bannerSlider: $('#banner-slider'),
+        bannerTrack: $('#banner-track'),
+        bannerDots: $('#banner-dots'),
         cashTotal: $('#cash-total'),
         cardTotal: $('#card-total'),
         recentTransactions: $('#recent-transactions'),
@@ -683,6 +888,15 @@
         aExpensesSplit: $('#a-expenses-split'),
         aEmergency: $('#a-emergency'),
         categoryLegend: $('#category-legend'),
+        recordFilterTabs: $('#record-filter-tabs'),
+        customFilterRow: $('#custom-filter-row'),
+        filterFromDate: $('#filter-from-date'),
+        filterToDate: $('#filter-to-date'),
+        periodIncome: $('#period-income'),
+        periodExpenses: $('#period-expenses'),
+        periodNet: $('#period-net'),
+        topCategory: $('#top-category'),
+        analyticsRecordsList: $('#analytics-records-list'),
 
         // Navigation
         bottomNav: $('#bottom-nav'),
@@ -732,6 +946,21 @@
         deleteModal: $('#delete-modal'),
         cancelDelete: $('#cancel-delete'),
         confirmDelete: $('#confirm-delete'),
+
+        // Edit record modal
+        editRecordModal: $('#edit-record-modal'),
+        closeEditRecord: $('#close-edit-record'),
+        cancelEditRecord: $('#cancel-edit-record'),
+        saveEditRecord: $('#save-edit-record'),
+        editRecordTitle: $('#edit-record-title'),
+        editRecordAmount: $('#edit-record-amount'),
+        editRecordNote: $('#edit-record-note'),
+        editRecordDate: $('#edit-record-date'),
+        editSplitFields: $('#edit-split-fields'),
+        editSplitExpenses: $('#edit-split-expenses'),
+        editSplitSavings: $('#edit-split-savings'),
+        editSplitEmergency: $('#edit-split-emergency'),
+        editRecordError: $('#edit-record-error'),
     };
 
     // ==========================================
@@ -836,6 +1065,10 @@
             transactions = [];
             walletBalances = { ...DEFAULT_WALLET_BALANCES };
             userSettings = { ...DEFAULT_USER_SETTINGS };
+            banners = [];
+            viewedBannerIds = new Set();
+            stopBannerAutoSlide();
+            renderBannerSlider();
             updateAccountUI(null);
             showAuthOnly(
                 event === 'SIGNED_OUT' ? 'تم تسجيل الخروج بنجاح.' : '',
@@ -1073,6 +1306,28 @@
         return nextBalances;
     }
 
+    function getIncomePartsForAmount(record, amount) {
+        const oldTotal = Number(record.amount || 0);
+        if (oldTotal > 0) {
+            return {
+                expensesAmount: amount * Number(record.expensesAmount || 0) / oldTotal,
+                savingsAmount: amount * Number(record.savingsAmount || 0) / oldTotal,
+                emergencyAmount: amount * Number(record.emergencyAmount || 0) / oldTotal,
+            };
+        }
+
+        return {
+            expensesAmount: amount * Number(userSettings.expenses_percentage || 0) / 100,
+            savingsAmount: amount * Number(userSettings.savings_percentage || 0) / 100,
+            emergencyAmount: amount * Number(userSettings.emergency_percentage || 0) / 100,
+        };
+    }
+
+    function getRecordExpenseParts(record) {
+        if (record.walletSplits && record.walletSplits.length) return record.walletSplits;
+        return [{ source_wallet: record.sourceWallet || 'expenses', amount: Number(record.amount || 0) }];
+    }
+
     function openDistributionModal() {
         if (!dom.distributionModal) return;
         dom.distributionExpenses.value = userSettings.expenses_percentage;
@@ -1189,6 +1444,201 @@
         } finally {
             dom.saveTransferBtn.disabled = false;
         }
+    }
+
+    function openEditRecordModal(id) {
+        const record = transactions.find(item => item.id === id);
+        if (!record || !dom.editRecordModal) return;
+
+        editTargetId = id;
+        dom.editRecordTitle.textContent =
+            record.type === 'income' ? 'تعديل دخل' :
+            record.type === 'expense' ? 'تعديل مصروف' :
+            'تعديل تحويل';
+        dom.editRecordAmount.value = record.amount;
+        dom.editRecordNote.value = record.description || '';
+        dom.editRecordDate.value = record.date || new Date().toISOString().split('T')[0];
+        dom.editRecordError.textContent = '';
+
+        const isSplitExpense = record.type === 'expense' && record.walletSplits && record.walletSplits.length;
+        dom.editSplitFields.classList.toggle('hidden', !isSplitExpense);
+        if (isSplitExpense) {
+            const getPart = wallet => record.walletSplits.find(part => part.source_wallet === wallet)?.amount || 0;
+            dom.editSplitExpenses.value = getPart('expenses');
+            dom.editSplitSavings.value = getPart('savings');
+            dom.editSplitEmergency.value = getPart('emergency');
+        }
+
+        dom.editRecordModal.classList.add('active');
+    }
+
+    function closeEditRecordModal() {
+        editTargetId = null;
+        if (dom.editRecordModal) dom.editRecordModal.classList.remove('active');
+    }
+
+    async function handleSaveEditedRecord() {
+        const record = transactions.find(item => item.id === editTargetId);
+        if (!record) return;
+
+        const amount = Number(dom.editRecordAmount.value || 0);
+        const note = dom.editRecordNote.value.trim();
+        const date = dom.editRecordDate.value || new Date().toISOString().split('T')[0];
+
+        if (!amount || amount <= 0) {
+            dom.editRecordError.textContent = 'أدخل مبلغ صحيح';
+            return;
+        }
+
+        try {
+            dom.saveEditRecord.disabled = true;
+
+            if (record.type === 'income') {
+                await updateIncomeRecord(record, amount, note, date);
+            } else if (record.type === 'expense') {
+                await updateExpenseRecord(record, amount, note, date);
+            } else if (record.type === 'transfer') {
+                await updateTransferRecord(record, amount, note, date);
+            }
+
+            await loadRecentRecords();
+            updateHome();
+            updateAnalytics();
+            closeEditRecordModal();
+            showToast('تم حفظ التعديل');
+        } catch (error) {
+            console.error('Failed to edit record:', error);
+            dom.editRecordError.textContent =
+                error.message === 'wallet_balance_insufficient'
+                    ? 'الرصيد غير كافٍ بعد التعديل'
+                    : error.message === 'split_sum_invalid'
+                        ? 'يجب أن يساوي مجموع التقسيم مبلغ المصروف'
+                        : 'تعذر حفظ التعديل. حاول مرة أخرى.';
+        } finally {
+            dom.saveEditRecord.disabled = false;
+        }
+    }
+
+    async function updateIncomeRecord(record, amount, note, date) {
+        const parts = getIncomePartsForAmount(record, amount);
+        const { error } = await supabaseClient
+            .from('incomes')
+            .update({
+                amount,
+                note,
+                income_date: date,
+                expenses_amount: parts.expensesAmount,
+                savings_amount: parts.savingsAmount,
+                emergency_amount: parts.emergencyAmount,
+            })
+            .eq('id', record.id)
+            .eq('user_id', requireFinancialUser());
+
+        if (error) throw error;
+
+        await saveWalletBalances({
+            expenses_balance: getWalletBalance('expenses') - Number(record.expensesAmount || 0) + parts.expensesAmount,
+            savings_balance: getWalletBalance('savings') - Number(record.savingsAmount || 0) + parts.savingsAmount,
+            emergency_balance: getWalletBalance('emergency') - Number(record.emergencyAmount || 0) + parts.emergencyAmount,
+            total_income: Number(walletBalances.total_income || 0) - Number(record.amount || 0) + amount,
+            total_spent: Number(walletBalances.total_spent || 0),
+        });
+    }
+
+    async function updateExpenseRecord(record, amount, note, date) {
+        const oldParts = getRecordExpenseParts(record);
+        let newParts = oldParts;
+
+        if (record.walletSplits && record.walletSplits.length) {
+            newParts = [
+                { source_wallet: 'expenses', amount: Number(dom.editSplitExpenses.value || 0) },
+                { source_wallet: 'savings', amount: Number(dom.editSplitSavings.value || 0) },
+                { source_wallet: 'emergency', amount: Number(dom.editSplitEmergency.value || 0) },
+            ].filter(part => part.amount > 0);
+            const splitTotal = Number(newParts.reduce((sum, part) => sum + part.amount, 0).toFixed(2));
+            if (splitTotal !== Number(amount.toFixed(2))) {
+                throw new Error('split_sum_invalid');
+            }
+        } else {
+            newParts = [{ source_wallet: record.sourceWallet || 'expenses', amount }];
+        }
+
+        const temporaryBalances = { ...walletBalances };
+        oldParts.forEach((part) => {
+            const key = getWalletBalanceKey(part.source_wallet);
+            temporaryBalances[key] = Number(temporaryBalances[key] || 0) + Number(part.amount || 0);
+        });
+        for (const part of newParts) {
+            const key = getWalletBalanceKey(part.source_wallet);
+            if (Number(part.amount || 0) > Number(temporaryBalances[key] || 0)) {
+                throw new Error('wallet_balance_insufficient');
+            }
+            temporaryBalances[key] = Number(temporaryBalances[key] || 0) - Number(part.amount || 0);
+        }
+        temporaryBalances.total_spent = Number(walletBalances.total_spent || 0) - Number(record.amount || 0) + amount;
+
+        const { error } = await supabaseClient
+            .from('transactions')
+            .update({
+                amount,
+                note,
+                transaction_date: date,
+                source_wallet: newParts[0]?.source_wallet || record.sourceWallet || 'expenses',
+            })
+            .eq('id', record.id)
+            .eq('user_id', requireFinancialUser());
+
+        if (error) throw error;
+
+        if (record.walletSplits && record.walletSplits.length) {
+            const deleteResult = await supabaseClient
+                .from('transaction_wallet_splits')
+                .delete()
+                .eq('transaction_id', record.id)
+                .eq('user_id', requireFinancialUser());
+            if (deleteResult.error) throw deleteResult.error;
+
+            const insertResult = await supabaseClient
+                .from('transaction_wallet_splits')
+                .insert(newParts.map(part => ({
+                    transaction_id: record.id,
+                    user_id: requireFinancialUser(),
+                    source_wallet: part.source_wallet,
+                    amount: part.amount,
+                })));
+            if (insertResult.error) throw insertResult.error;
+        }
+
+        await saveWalletBalances(temporaryBalances);
+    }
+
+    async function updateTransferRecord(record, amount, note, date) {
+        const temporaryBalances = {
+            ...walletBalances,
+            [getWalletBalanceKey(record.fromWallet)]: getWalletBalance(record.fromWallet) + Number(record.amount || 0),
+            [getWalletBalanceKey(record.toWallet)]: getWalletBalance(record.toWallet) - Number(record.amount || 0),
+        };
+
+        const fromKey = getWalletBalanceKey(record.fromWallet);
+        if (amount > Number(temporaryBalances[fromKey] || 0)) {
+            throw new Error('wallet_balance_insufficient');
+        }
+
+        temporaryBalances[fromKey] = Number(temporaryBalances[fromKey] || 0) - amount;
+        temporaryBalances[getWalletBalanceKey(record.toWallet)] = Number(temporaryBalances[getWalletBalanceKey(record.toWallet)] || 0) + amount;
+
+        const { error } = await supabaseClient
+            .from('wallet_transfers')
+            .update({
+                amount,
+                note,
+                transfer_date: date,
+            })
+            .eq('id', record.id)
+            .eq('user_id', requireFinancialUser());
+
+        if (error) throw error;
+        await saveWalletBalances(temporaryBalances);
     }
 
     function updateAuthMode(mode, options = {}) {
@@ -1404,6 +1854,23 @@
             updateAnalytics();
         });
 
+        if (dom.recordFilterTabs) {
+            dom.recordFilterTabs.addEventListener('click', (event) => {
+                const btn = event.target.closest('.record-filter-btn');
+                if (!btn) return;
+                recordFilterMode = btn.dataset.filter;
+                updateAnalytics();
+            });
+        }
+
+        [dom.filterFromDate, dom.filterToDate].forEach((input) => {
+            if (!input) return;
+            input.addEventListener('change', () => {
+                recordFilterMode = 'custom';
+                updateAnalytics();
+            });
+        });
+
         // Settings
         dom.settingsBtn.addEventListener('click', () => dom.settingsModal.classList.add('active'));
         dom.closeSettings.addEventListener('click', () => dom.settingsModal.classList.remove('active'));
@@ -1483,6 +1950,24 @@
                 dom.deleteModal.classList.remove('active');
             }
         });
+
+        if (dom.closeEditRecord) {
+            dom.closeEditRecord.addEventListener('click', closeEditRecordModal);
+        }
+
+        if (dom.cancelEditRecord) {
+            dom.cancelEditRecord.addEventListener('click', closeEditRecordModal);
+        }
+
+        if (dom.editRecordModal) {
+            dom.editRecordModal.addEventListener('click', (event) => {
+                if (event.target === dom.editRecordModal) closeEditRecordModal();
+            });
+        }
+
+        if (dom.saveEditRecord) {
+            dom.saveEditRecord.addEventListener('click', handleSaveEditedRecord);
+        }
 
         // See all transactions
         dom.seeAllBtn.addEventListener('click', () => {
@@ -1701,7 +2186,7 @@
                     total_income: Number(walletBalances.total_income || 0) - Number(tx.amount || 0),
                     total_spent: Number(walletBalances.total_spent || 0),
                 });
-            } else {
+            } else if (tx.type === 'expense') {
                 const { error } = await supabaseClient
                     .from('transactions')
                     .delete()
@@ -1721,10 +2206,25 @@
                 nextBalances.total_spent = Math.max(0, Number(walletBalances.total_spent || 0) - Number(tx.amount || 0));
 
                 await saveWalletBalances(nextBalances);
+            } else if (tx.type === 'transfer') {
+                const { error } = await supabaseClient
+                    .from('wallet_transfers')
+                    .delete()
+                    .eq('id', id)
+                    .eq('user_id', requireFinancialUser());
+
+                if (error) throw error;
+
+                await saveWalletBalances({
+                    ...walletBalances,
+                    [getWalletBalanceKey(tx.fromWallet)]: getWalletBalance(tx.fromWallet) + Number(tx.amount || 0),
+                    [getWalletBalanceKey(tx.toWallet)]: getWalletBalance(tx.toWallet) - Number(tx.amount || 0),
+                });
             }
 
             await loadRecentRecords();
             updateHome();
+            updateAnalytics();
             showToast('تم حذف المعاملة');
         } catch (error) {
             console.error('Failed to delete record:', error);
@@ -1852,14 +2352,9 @@
                 <div>
                     <span class="transaction-amount expense">-${formatMoney(tx.amount)}</span>
                 </div>
-                <button class="transaction-delete" data-id="${tx.id}" aria-label="حذف">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    </svg>
-                </button>
+                ${getRecordActionsHTML()}
             `;
-        } else {
+        } else if (tx.type === 'income') {
             const dateFormatted = formatDate(tx.date);
             div.innerHTML = `
                 <div class="transaction-icon income-type">💰</div>
@@ -1871,12 +2366,21 @@
                 <div>
                     <span class="transaction-amount income">+${formatMoney(tx.amount)}</span>
                 </div>
-                <button class="transaction-delete" data-id="${tx.id}" aria-label="حذف">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    </svg>
-                </button>
+                ${getRecordActionsHTML()}
+            `;
+        } else {
+            const dateFormatted = formatDate(tx.date);
+            div.innerHTML = `
+                <div class="transaction-icon transfer-type">⇄</div>
+                <div class="transaction-info">
+                    <div class="transaction-category">تحويل</div>
+                    <div class="transaction-desc">${WALLET_LABELS[tx.fromWallet]} ← ${WALLET_LABELS[tx.toWallet]}${tx.description ? ` - ${tx.description}` : ''}</div>
+                    <span class="transaction-date-text">${dateFormatted}</span>
+                </div>
+                <div>
+                    <span class="transaction-amount transfer">${formatMoney(tx.amount)}</span>
+                </div>
+                ${getRecordActionsHTML()}
             `;
         }
 
@@ -1886,7 +2390,29 @@
             dom.deleteModal.classList.add('active');
         });
 
+        const editBtn = div.querySelector('.transaction-edit');
+        editBtn.addEventListener('click', () => openEditRecordModal(tx.id));
+
         return div;
+    }
+
+    function getRecordActionsHTML() {
+        return `
+            <div class="transaction-actions">
+                <button class="transaction-edit" type="button" aria-label="تعديل">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 20h9"/>
+                        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                    </svg>
+                </button>
+                <button class="transaction-delete" type="button" aria-label="حذف">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                </button>
+            </div>
+        `;
     }
 
     function formatDate(dateStr) {
@@ -1934,6 +2460,52 @@
     function getAnalyticsTransactions() {
         if (analyticsMode === 'all') return transactions;
         return transactions.filter(isTransactionInSelectedMonth);
+    }
+
+    function getRecordFilterRange() {
+        const now = new Date();
+        const startOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const endOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+
+        if (recordFilterMode === 'today') {
+            return { from: startOfDay(now), to: endOfDay(now) };
+        }
+
+        if (recordFilterMode === 'lastMonth') {
+            return {
+                from: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+                to: new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999),
+            };
+        }
+
+        if (recordFilterMode === 'custom') {
+            const from = parseTransactionDate(dom.filterFromDate && dom.filterFromDate.value);
+            const to = parseTransactionDate(dom.filterToDate && dom.filterToDate.value);
+            return {
+                from: from ? startOfDay(from) : null,
+                to: to ? endOfDay(to) : null,
+            };
+        }
+
+        return {
+            from: new Date(now.getFullYear(), now.getMonth(), 1),
+            to: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999),
+        };
+    }
+
+    function isRecordInFilter(record) {
+        const date = parseTransactionDate(record.date);
+        if (!date) return false;
+        const { from, to } = getRecordFilterRange();
+        if (from && date < from) return false;
+        if (to && date > to) return false;
+        return true;
+    }
+
+    function getFilteredRecords() {
+        return transactions
+            .filter(isRecordInFilter)
+            .sort((a, b) => getCreatedTime(b) - getCreatedTime(a));
     }
 
     // ==========================================
@@ -1988,6 +2560,53 @@
         updatePaymentChart(monthCash, monthCard);
         updateIncomeDistChart(monthSavings, monthExpensesSplit, monthEmergency);
         updateSpendingTrendChart(scopedTransactions);
+        updateRecordsPanel();
+    }
+
+    function updateRecordsPanel() {
+        if (!dom.analyticsRecordsList) return;
+
+        dom.recordFilterTabs.querySelectorAll('.record-filter-btn').forEach((btn) => {
+            btn.classList.toggle('active', btn.dataset.filter === recordFilterMode);
+        });
+
+        if (dom.customFilterRow) {
+            dom.customFilterRow.classList.toggle('hidden', recordFilterMode !== 'custom');
+        }
+
+        const records = getFilteredRecords();
+        const periodIncome = records
+            .filter(record => record.type === 'income')
+            .reduce((sum, record) => sum + record.amount, 0);
+        const periodExpenses = records
+            .filter(record => record.type === 'expense')
+            .reduce((sum, record) => sum + record.amount, 0);
+        const categoryTotals = {};
+        records
+            .filter(record => record.type === 'expense')
+            .forEach((record) => {
+                categoryTotals[record.category] = (categoryTotals[record.category] || 0) + record.amount;
+            });
+        const topCategoryKey = Object.keys(categoryTotals)
+            .sort((a, b) => categoryTotals[b] - categoryTotals[a])[0];
+
+        dom.periodIncome.textContent = formatMoneyWithCurrency(periodIncome);
+        dom.periodExpenses.textContent = formatMoneyWithCurrency(periodExpenses);
+        dom.periodNet.textContent = formatMoneyWithCurrency(periodIncome - periodExpenses);
+        dom.topCategory.textContent = topCategoryKey
+            ? `${CATEGORIES[topCategoryKey]?.label || topCategoryKey} (${formatMoney(categoryTotals[topCategoryKey])})`
+            : 'لا يوجد';
+
+        if (records.length === 0) {
+            dom.analyticsRecordsList.innerHTML = '';
+            dom.analyticsRecordsList.appendChild(createEmptyState());
+            return;
+        }
+
+        dom.analyticsRecordsList.innerHTML = '';
+        records.forEach((record) => {
+            dom.analyticsRecordsList.appendChild(createTransactionElement(record));
+        });
     }
 
     function updateCategoryChart(monthTransactions) {
