@@ -784,6 +784,21 @@ button {
     color: var(--accent-purple);
 }
 
+.section-action-btn {
+    min-height: 34px;
+    padding: 0 var(--space-md);
+    border-radius: var(--radius-sm);
+    color: var(--accent-purple-light);
+    background: var(--accent-purple-glow);
+    border: 1px solid rgba(139, 92, 246, 0.24);
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+.section-action-btn:hover {
+    background: rgba(139, 92, 246, 0.22);
+}
+
 /* ============================================
    SPLIT CARDS (Income Distribution on Home)
    ============================================ */
@@ -915,6 +930,14 @@ button {
     .banner-admin-actions {
         grid-template-columns: 1fr 1fr;
     }
+
+    .record-detail-row {
+        grid-template-columns: 1fr;
+    }
+
+    .record-detail-row strong {
+        text-align: right;
+    }
 }
 
 /* ============================================
@@ -1006,10 +1029,12 @@ button {
     gap: var(--space-md);
     transition: all var(--transition-normal);
     animation: slideInUp 0.3s ease;
+    cursor: pointer;
 }
 
 .transaction-item:hover {
     border-color: var(--border-active);
+    transform: translateY(-1px);
 }
 
 .transaction-icon {
@@ -1165,6 +1190,67 @@ button {
     font-size: 0.75rem;
     color: var(--text-muted);
     margin-top: var(--space-xs);
+}
+
+.record-detail-body {
+    display: grid;
+    gap: var(--space-md);
+}
+
+.record-detail-amount {
+    text-align: center;
+    font-size: 1.65rem;
+    font-weight: 900;
+}
+
+.record-detail-amount.income {
+    color: var(--income-green);
+}
+
+.record-detail-amount.expense {
+    color: var(--expense-red);
+}
+
+.record-detail-amount.transfer {
+    color: var(--emergency-amber);
+}
+
+.record-detail-subtitle {
+    margin-top: calc(var(--space-sm) * -1);
+    color: var(--text-secondary);
+    text-align: center;
+    font-size: 0.82rem;
+    line-height: 1.7;
+}
+
+.record-detail-rows {
+    display: grid;
+    gap: var(--space-sm);
+}
+
+.record-detail-row {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: var(--space-sm);
+    align-items: start;
+    padding: var(--space-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+}
+
+.record-detail-row span {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+.record-detail-row strong {
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    line-height: 1.7;
+    text-align: left;
+    direction: rtl;
 }
 
 @keyframes slideInUp {

@@ -16,7 +16,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=20">
+    <link rel="stylesheet" href="style.css?v=21">
 </head>
 <body>
     <!-- Supabase Authentication -->
@@ -414,6 +414,7 @@
                     <div class="analytics-log-panel">
                         <div class="section-title">
                             <h3>سجل العمليات</h3>
+                            <button class="section-action-btn" id="export-records-btn" type="button">تصدير</button>
                         </div>
                         <div class="record-filter-tabs" id="record-filter-tabs">
                             <button class="record-filter-btn active" type="button" data-filter="month">هذا الشهر</button>
@@ -740,6 +741,25 @@
             </div>
         </div>
 
+        <!-- Record Details Modal -->
+        <div class="modal-overlay" id="record-detail-modal">
+            <div class="modal-card modal-card-small">
+                <div class="modal-header">
+                    <h3 id="record-detail-title">تفاصيل العملية</h3>
+                    <button class="modal-close" id="close-record-detail" type="button">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="record-detail-body" id="record-detail-body"></div>
+                    <div class="modal-actions">
+                        <button class="modal-btn cancel-btn" id="detail-edit-btn" type="button">تعديل</button>
+                        <button class="modal-btn confirm-delete-btn" id="detail-delete-btn" type="button">حذف</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Edit Record Modal -->
         <div class="modal-overlay" id="edit-record-modal">
             <div class="modal-card modal-card-small">
@@ -789,6 +809,6 @@
 
     </div>
 
-    <script src="app.js?v=20"></script>
+    <script src="app.js?v=21"></script>
 </body>
 </html>

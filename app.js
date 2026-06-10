@@ -103,6 +103,7 @@
     let recordFilterMode = 'month';
     let editTargetId = null;
     let recordTypeFilter = 'all';
+    let detailTargetId = null;
     let banners = [];
     let bannerAdminItems = [];
     let editingBannerId = null;
@@ -1152,6 +1153,7 @@
         topCategory: $('#top-category'),
         periodCount: $('#period-count'),
         analyticsRecordsList: $('#analytics-records-list'),
+        exportRecordsBtn: $('#export-records-btn'),
 
         // Navigation
         bottomNav: $('#bottom-nav'),
@@ -1217,6 +1219,14 @@
         deleteModal: $('#delete-modal'),
         cancelDelete: $('#cancel-delete'),
         confirmDelete: $('#confirm-delete'),
+
+        // Record details modal
+        recordDetailModal: $('#record-detail-modal'),
+        closeRecordDetail: $('#close-record-detail'),
+        recordDetailTitle: $('#record-detail-title'),
+        recordDetailBody: $('#record-detail-body'),
+        detailEditBtn: $('#detail-edit-btn'),
+        detailDeleteBtn: $('#detail-delete-btn'),
 
         // Edit record modal
         editRecordModal: $('#edit-record-modal'),
@@ -2146,6 +2156,10 @@
             });
         }
 
+        if (dom.exportRecordsBtn) {
+            dom.exportRecordsBtn.addEventListener('click', exportFilteredRecords);
+        }
+
         [dom.filterFromDate, dom.filterToDate].forEach((input) => {
             if (!input) return;
             input.addEventListener('change', () => {
@@ -2272,6 +2286,34 @@
                 dom.deleteModal.classList.remove('active');
             }
         });
+
+        if (dom.closeRecordDetail) {
+            dom.closeRecordDetail.addEventListener('click', closeRecordDetailModal);
+        }
+
+        if (dom.recordDetailModal) {
+            dom.recordDetailModal.addEventListener('click', (event) => {
+                if (event.target === dom.recordDetailModal) closeRecordDetailModal();
+            });
+        }
+
+        if (dom.detailEditBtn) {
+            dom.detailEditBtn.addEventListener('click', () => {
+                if (!detailTargetId) return;
+                const id = detailTargetId;
+                closeRecordDetailModal();
+                openEditRecordModal(id);
+            });
+        }
+
+        if (dom.detailDeleteBtn) {
+            dom.detailDeleteBtn.addEventListener('click', () => {
+                if (!detailTargetId) return;
+                deleteTargetId = detailTargetId;
+                closeRecordDetailModal();
+                dom.deleteModal.classList.add('active');
+            });
+        }
 
         if (dom.closeEditRecord) {
             dom.closeEditRecord.addEventListener('click', closeEditRecordModal);
@@ -2650,6 +2692,7 @@
     function createTransactionElement(tx) {
         const div = document.createElement('div');
         div.className = 'transaction-item';
+        div.dataset.recordId = tx.id;
 
         if (tx.type === 'expense') {
             const cat = CATEGORIES[tx.category] || CATEGORIES.food;
@@ -2707,13 +2750,21 @@
         }
 
         const deleteBtn = div.querySelector('.transaction-delete');
-        deleteBtn.addEventListener('click', () => {
+        deleteBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
             deleteTargetId = tx.id;
             dom.deleteModal.classList.add('active');
         });
 
         const editBtn = div.querySelector('.transaction-edit');
-        editBtn.addEventListener('click', () => openEditRecordModal(tx.id));
+        editBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            openEditRecordModal(tx.id);
+        });
+
+        div.addEventListener('click', () => {
+            openRecordDetailModal(tx.id);
+        });
 
         return div;
     }
@@ -2735,6 +2786,148 @@
                 </button>
             </div>
         `;
+    }
+
+    function getRecordTitle(record) {
+        if (record.type === 'income') return 'دخل';
+        if (record.type === 'transfer') return 'تحويل بين المحافظ';
+        const cat = CATEGORIES[record.category] || CATEGORIES.food;
+        return cat.label;
+    }
+
+    function getRecordSubtitle(record) {
+        if (record.type === 'income') return record.description || 'بدون وصف';
+        if (record.type === 'transfer') {
+            return `${WALLET_LABELS[record.fromWallet]} ← ${WALLET_LABELS[record.toWallet]}`;
+        }
+        const walletLabel = record.walletSplits && record.walletSplits.length
+            ? 'مصروف مقسّم'
+            : (WALLET_LABELS[record.sourceWallet] || WALLET_LABELS.expenses);
+        const paymentLabel = record.paymentMethod === 'cash' ? 'كاش' : 'بطاقة';
+        return `${walletLabel} · ${paymentLabel}`;
+    }
+
+    function getRecordSignedAmount(record) {
+        if (record.type === 'income') return `+${formatMoneyWithCurrency(record.amount)}`;
+        if (record.type === 'expense') return `-${formatMoneyWithCurrency(record.amount)}`;
+        return formatMoneyWithCurrency(record.amount);
+    }
+
+    function getRecordDetailRows(record) {
+        const rows = [
+            ['المبلغ', getRecordSignedAmount(record)],
+            ['التاريخ', formatDate(record.date)],
+            ['الوصف', record.description || 'بدون وصف'],
+        ];
+
+        if (record.type === 'income') {
+            rows.push(
+                ['للمصروفات', formatMoneyWithCurrency(record.expensesAmount || 0)],
+                ['للاَدخار', formatMoneyWithCurrency(record.savingsAmount || 0)],
+                ['للطوارئ', formatMoneyWithCurrency(record.emergencyAmount || 0)],
+            );
+        } else if (record.type === 'expense') {
+            const cat = CATEGORIES[record.category] || CATEGORIES.food;
+            rows.push(
+                ['التصنيف', cat.label],
+                ['طريقة الدفع', record.paymentMethod === 'cash' ? 'كاش' : 'بطاقة'],
+            );
+
+            if (record.walletSplits && record.walletSplits.length) {
+                rows.push([
+                    'تقسيم المحافظ',
+                    record.walletSplits
+                        .map((part) => `${WALLET_LABELS[part.source_wallet]}: ${formatMoneyWithCurrency(part.amount)}`)
+                        .join(' / '),
+                ]);
+            } else {
+                rows.push(['المحفظة', WALLET_LABELS[record.sourceWallet] || WALLET_LABELS.expenses]);
+            }
+        } else {
+            rows.push(
+                ['من محفظة', WALLET_LABELS[record.fromWallet] || record.fromWallet],
+                ['إلى محفظة', WALLET_LABELS[record.toWallet] || record.toWallet],
+            );
+        }
+
+        return rows;
+    }
+
+    function openRecordDetailModal(recordId) {
+        const record = transactions.find((item) => item.id === recordId);
+        if (!record || !dom.recordDetailModal || !dom.recordDetailBody) return;
+
+        detailTargetId = record.id;
+        dom.recordDetailTitle.textContent = getRecordTitle(record);
+        dom.recordDetailBody.innerHTML = `
+            <div class="record-detail-amount ${record.type}">${getRecordSignedAmount(record)}</div>
+            <div class="record-detail-subtitle">${escapeHTML(getRecordSubtitle(record))}</div>
+            <div class="record-detail-rows">
+                ${getRecordDetailRows(record).map(([label, value]) => `
+                    <div class="record-detail-row">
+                        <span>${escapeHTML(label)}</span>
+                        <strong>${escapeHTML(String(value))}</strong>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        dom.recordDetailModal.classList.add('active');
+    }
+
+    function closeRecordDetailModal() {
+        detailTargetId = null;
+        if (dom.recordDetailModal) {
+            dom.recordDetailModal.classList.remove('active');
+        }
+    }
+
+    function csvEscape(value) {
+        const text = String(value ?? '');
+        return `"${text.replace(/"/g, '""')}"`;
+    }
+
+    function exportFilteredRecords() {
+        const records = getFilteredRecords();
+        if (!records.length) {
+            showToast('لا توجد عمليات للتصدير');
+            return;
+        }
+
+        const header = ['النوع', 'التاريخ', 'المبلغ', 'الوصف', 'التصنيف/المحفظة', 'طريقة الدفع'];
+        const rows = records.map((record) => {
+            const type = record.type === 'income' ? 'دخل' : record.type === 'expense' ? 'مصروف' : 'تحويل';
+            const category = record.type === 'expense'
+                ? getRecordSubtitle(record)
+                : record.type === 'transfer'
+                    ? `${WALLET_LABELS[record.fromWallet]} إلى ${WALLET_LABELS[record.toWallet]}`
+                    : 'توزيع الدخل';
+            const payment = record.type === 'expense'
+                ? (record.paymentMethod === 'cash' ? 'كاش' : 'بطاقة')
+                : '';
+
+            return [
+                type,
+                record.date,
+                record.amount,
+                record.description || '',
+                category,
+                payment,
+            ];
+        });
+
+        const csv = [header, ...rows]
+            .map((row) => row.map(csvEscape).join(','))
+            .join('\n');
+        const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `cashgo-records-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        showToast('تم تصدير السجل');
     }
 
     function formatDate(dateStr) {
