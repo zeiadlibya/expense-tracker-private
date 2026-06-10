@@ -3406,6 +3406,20 @@
         setTimeout(() => el.style.animation = '', 400);
     }
 
+    function registerServiceWorker() {
+        if (!('serviceWorker' in navigator)) return;
+
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js?v=22', { scope: './' })
+                .then((registration) => {
+                    registration.update();
+                })
+                .catch((error) => {
+                    console.warn('Service worker registration failed:', error);
+                });
+        });
+    }
+
     const shakeStyle = document.createElement('style');
     shakeStyle.textContent = `
         @keyframes shake {
@@ -3426,5 +3440,7 @@
     } else {
         init();
     }
+
+    registerServiceWorker();
 
 })();

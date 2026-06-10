@@ -1,20 +1,29 @@
 {
+  "id": "./index.html",
   "name": "Cashgo",
   "short_name": "Cashgo",
+  "description": "إدارة مصروفاتك اليومية بسهولة",
+  "lang": "ar",
+  "dir": "rtl",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
   "background_color": "#0a0a0f",
   "theme_color": "#06118f",
   "icons": [
     {
       "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
