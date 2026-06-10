@@ -96,6 +96,7 @@
     let isSyncing = false;
     let toastTimer = null;
     let authUser = null;
+    let isBannerAdmin = false;
     let appFlowStarted = false;
     let authMode = 'login';
     let authStateListenerAttached = false;
@@ -775,6 +776,10 @@
 
     async function openBannerAdminModal() {
         if (!dom.bannerAdminModal) return;
+        if (!isBannerAdmin) {
+            showToast('هذه الصفحة مخصصة للأدمن فقط');
+            return;
+        }
         dom.settingsModal.classList.remove('active');
         dom.bannerAdminModal.classList.add('active');
         resetBannerAdminForm();
@@ -1011,6 +1016,38 @@
             throw new Error('Missing authenticated user');
         }
         return userId;
+    }
+
+    async function refreshAdminAccess() {
+        isBannerAdmin = false;
+
+        if (!supabaseClient || !authUser) {
+            updateAdminUI();
+            return false;
+        }
+
+        try {
+            const { data, error } = await supabaseClient
+                .from('app_admins')
+                .select('user_id')
+                .eq('user_id', authUser.id)
+                .maybeSingle();
+
+            if (error) throw error;
+            isBannerAdmin = Boolean(data);
+        } catch (error) {
+            console.warn('Admin access check failed:', error);
+            isBannerAdmin = false;
+        }
+
+        updateAdminUI();
+        return isBannerAdmin;
+    }
+
+    function updateAdminUI() {
+        if (dom.openBannerAdminBtn) {
+            dom.openBannerAdminBtn.classList.toggle('hidden', !isBannerAdmin);
+        }
     }
 
     function getCurrencyDisplay(value = currency) {
@@ -1295,6 +1332,7 @@
             }
 
             authUser = null;
+            isBannerAdmin = false;
             appFlowStarted = false;
             transactions = [];
             walletBalances = { ...DEFAULT_WALLET_BALANCES };
@@ -1303,6 +1341,7 @@
             viewedBannerIds = new Set();
             stopBannerAutoSlide();
             renderBannerSlider();
+            updateAdminUI();
             updateAccountUI(null);
             showAuthOnly(
                 event === 'SIGNED_OUT' ? 'تم تسجيل الخروج بنجاح.' : '',
@@ -1314,6 +1353,7 @@
     async function handleAuthenticatedUser(user) {
         authUser = user;
         updateAccountUI(authUser);
+        await refreshAdminAccess();
 
         try {
             await initializeFinancialData();
