@@ -3788,7 +3788,7 @@
         if (!('serviceWorker' in navigator)) return;
 
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js?v=29', { scope: './' })
+            navigator.serviceWorker.register('./sw.js?v=30', { scope: './' })
                 .then((registration) => {
                     registration.update();
                 })

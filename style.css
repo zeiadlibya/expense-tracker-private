@@ -16,6 +16,12 @@
     --color-success: #34d399;
     --color-warning: #fbbf24;
     --color-danger: #f87171;
+    --hero-card-start: color-mix(in srgb, var(--color-primary) 94%, #ffffff);
+    --hero-card-mid: color-mix(in srgb, var(--color-primary) 78%, #ffffff);
+    --hero-card-end: color-mix(in srgb, var(--color-primary) 90%, #000000);
+    --hero-card-text: #ffffff;
+    --hero-card-muted: rgba(255, 255, 255, 0.68);
+    --hero-card-faint: rgba(255, 255, 255, 0.52);
 
     /* Colors - Dark Theme */
     --bg-primary: var(--color-bg);
@@ -102,6 +108,9 @@
     --bg-secondary: #12121a;
     --bg-glass: rgba(26, 26, 46, 0.7);
     --bg-nav: rgba(10, 10, 15, 0.92);
+    --hero-card-start: color-mix(in srgb, var(--color-primary) 18%, #111827);
+    --hero-card-mid: color-mix(in srgb, var(--color-primary) 24%, #111827);
+    --hero-card-end: color-mix(in srgb, var(--color-primary) 14%, #020617);
 }
 
 :root[data-color-theme="blue"] {
@@ -828,7 +837,7 @@ button {
 .balance-card-bg {
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, #1e1045 0%, #2d1b69 40%, #1a0f3c 100%);
+    background: linear-gradient(135deg, var(--hero-card-start) 0%, var(--hero-card-mid) 48%, var(--hero-card-end) 100%);
     z-index: 0;
 }
 
@@ -839,7 +848,7 @@ button {
     right: -30%;
     width: 200px;
     height: 200px;
-    background: radial-gradient(circle, rgba(139, 92, 246, 0.3), transparent 70%);
+    background: radial-gradient(circle, var(--accent-purple-glow), transparent 70%);
     border-radius: 50%;
 }
 
@@ -850,7 +859,7 @@ button {
     left: -20%;
     width: 160px;
     height: 160px;
-    background: radial-gradient(circle, rgba(96, 165, 250, 0.15), transparent 70%);
+    background: radial-gradient(circle, color-mix(in srgb, var(--color-primary) 22%, transparent), transparent 70%);
     border-radius: 50%;
 }
 
@@ -862,7 +871,7 @@ button {
 
 .balance-label {
     font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--hero-card-muted);
     margin-bottom: var(--space-xs);
 }
 
@@ -871,7 +880,7 @@ button {
     font-weight: 800;
     margin-bottom: var(--space-lg);
     letter-spacing: -0.5px;
-    background: linear-gradient(135deg, #fff 30%, var(--accent-purple-light));
+    background: linear-gradient(135deg, var(--hero-card-text) 20%, color-mix(in srgb, var(--hero-card-text) 72%, var(--color-primary)));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -913,19 +922,20 @@ button {
 .balance-item-label {
     display: block;
     font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--hero-card-faint);
 }
 
 .balance-item-value {
     display: block;
     font-size: 0.95rem;
     font-weight: 700;
+    color: var(--hero-card-text);
 }
 
 .balance-divider {
     width: 1px;
     height: 36px;
-    background: rgba(255, 255, 255, 0.1);
+    background: color-mix(in srgb, var(--hero-card-text) 16%, transparent);
 }
 
 /* ============================================
