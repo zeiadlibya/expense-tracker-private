@@ -246,6 +246,21 @@ button {
     box-shadow: var(--shadow-lg);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
+    position: relative;
+}
+
+.auth-close-btn {
+    position: absolute;
+    top: var(--space-md);
+    left: var(--space-md);
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .auth-heading {
@@ -318,6 +333,7 @@ button {
 .auth-primary-btn,
 .auth-secondary-btn,
 .auth-google-btn,
+.auth-demo-btn,
 .logout-btn {
     width: 100%;
     min-height: 50px;
@@ -335,6 +351,12 @@ button {
     color: var(--text-primary);
     background: rgba(255, 255, 255, 0.07);
     border: 1px solid var(--border-color);
+}
+
+.auth-demo-btn {
+    color: var(--accent-purple-light);
+    background: transparent;
+    border: 1px solid rgba(139, 92, 246, 0.28);
 }
 
 .auth-google-btn {
@@ -366,6 +388,52 @@ button {
 .auth-google-btn:disabled {
     opacity: 0.65;
     cursor: progress;
+}
+
+.header-login-btn {
+    min-height: 38px;
+    padding: 0 var(--space-md);
+    border-radius: var(--radius-sm);
+    color: #fff;
+    background: linear-gradient(135deg, #1f83ff, #6d28d9);
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.demo-notice {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    margin-bottom: var(--space-md);
+    padding: var(--space-md);
+    border: 1px solid rgba(139, 92, 246, 0.28);
+    border-radius: var(--radius-md);
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.demo-notice p {
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    line-height: 1.7;
+}
+
+.demo-notice button {
+    flex-shrink: 0;
+    min-height: 36px;
+    padding: 0 var(--space-md);
+    border-radius: var(--radius-sm);
+    color: var(--accent-purple-light);
+    background: var(--accent-purple-glow);
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+@media (max-width: 420px) {
+    .demo-notice {
+        align-items: stretch;
+        flex-direction: column;
+    }
 }
 
 /* ============================================
