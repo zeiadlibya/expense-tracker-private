@@ -571,6 +571,8 @@ button {
     aspect-ratio: 16 / 5;
     min-height: 96px;
     max-height: 170px;
+    touch-action: pan-y;
+    user-select: none;
 }
 
 .banner-track {

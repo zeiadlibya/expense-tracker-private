@@ -108,6 +108,7 @@
     let bannerTouchStartX = 0;
     let bannerTouchDeltaX = 0;
     let bannerPointerDown = false;
+    let bannerWasSwiping = false;
 
     // Chart instances
     let categoryChart = null;
@@ -605,7 +606,12 @@
 
     function bindBannerSlideEvents() {
         dom.bannerTrack.querySelectorAll('.banner-slide').forEach((slide) => {
-            slide.addEventListener('click', () => {
+            slide.addEventListener('click', (event) => {
+                if (bannerWasSwiping) {
+                    event.preventDefault();
+                    bannerWasSwiping = false;
+                    return;
+                }
                 const index = Number(slide.dataset.index || 0);
                 const banner = banners[index];
                 if (banner) trackBannerClick(banner.id, banner.target_url);
@@ -627,38 +633,47 @@
             });
         });
 
-        dom.bannerTrack.addEventListener('touchstart', (event) => {
+        const swipeSurface = dom.bannerSlider || dom.bannerTrack;
+
+        swipeSurface.addEventListener('touchstart', (event) => {
             bannerTouchStartX = event.touches[0].clientX;
             bannerTouchDeltaX = 0;
+            bannerWasSwiping = false;
         }, { passive: true });
 
-        dom.bannerTrack.addEventListener('touchmove', (event) => {
+        swipeSurface.addEventListener('touchmove', (event) => {
             bannerTouchDeltaX = event.touches[0].clientX - bannerTouchStartX;
+            if (Math.abs(bannerTouchDeltaX) > 12) {
+                bannerWasSwiping = true;
+            }
         }, { passive: true });
 
-        dom.bannerTrack.addEventListener('touchend', () => {
-            if (Math.abs(bannerTouchDeltaX) < 40) return;
+        swipeSurface.addEventListener('touchend', () => {
+            if (Math.abs(bannerTouchDeltaX) < 28) return;
             if (bannerTouchDeltaX < 0) {
                 updateBannerSlide(activeBannerIndex + 1);
             } else {
                 updateBannerSlide(activeBannerIndex - 1);
             }
             startBannerAutoSlide();
+            setTimeout(() => {
+                bannerWasSwiping = false;
+            }, 80);
         });
 
-        dom.bannerTrack.addEventListener('pointerdown', (event) => {
+        swipeSurface.addEventListener('pointerdown', (event) => {
             if (event.pointerType === 'touch') return;
             bannerPointerDown = true;
             bannerTouchStartX = event.clientX;
             bannerTouchDeltaX = 0;
         });
 
-        dom.bannerTrack.addEventListener('pointermove', (event) => {
+        swipeSurface.addEventListener('pointermove', (event) => {
             if (!bannerPointerDown) return;
             bannerTouchDeltaX = event.clientX - bannerTouchStartX;
         });
 
-        dom.bannerTrack.addEventListener('pointerup', () => {
+        swipeSurface.addEventListener('pointerup', () => {
             if (!bannerPointerDown) return;
             bannerPointerDown = false;
             if (Math.abs(bannerTouchDeltaX) < 40) return;
@@ -666,7 +681,7 @@
             startBannerAutoSlide();
         });
 
-        dom.bannerTrack.addEventListener('pointerleave', () => {
+        swipeSurface.addEventListener('pointerleave', () => {
             bannerPointerDown = false;
         });
     }
