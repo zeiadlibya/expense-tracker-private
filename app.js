@@ -32,6 +32,8 @@
     // ==========================================
     const STORAGE_KEYS = {
         CURRENCY: 'wallet_currency',
+        DEMO_DATA: 'cashgo_demo_data',
+        DEMO_ACTION_COUNT: 'cashgo_demo_action_count',
     };
     const FIXED_SPLIT_RATIOS = {
         savings: 0.30,
@@ -90,6 +92,7 @@
     let deleteTargetId = null;
     let toastTimer = null;
     let authUser = null;
+    let demoMode = true;
     let isBannerAdmin = false;
     let appFlowStarted = false;
     let authMode = 'login';
@@ -125,6 +128,69 @@
 
     function saveCurrency() {
         localStorage.setItem(STORAGE_KEYS.CURRENCY, currency);
+    }
+
+    function isDemoMode() {
+        return !authUser || demoMode;
+    }
+
+    function loadDemoData() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEYS.DEMO_DATA);
+            if (!raw) {
+                transactions = [];
+                walletBalances = { ...DEFAULT_WALLET_BALANCES };
+                userSettings = { ...DEFAULT_USER_SETTINGS };
+                return;
+            }
+
+            const data = JSON.parse(raw);
+            transactions = Array.isArray(data.transactions) ? data.transactions : [];
+            walletBalances = normalizeWalletBalances(data.walletBalances || DEFAULT_WALLET_BALANCES);
+            userSettings = normalizeUserSettings(data.userSettings || DEFAULT_USER_SETTINGS);
+        } catch (error) {
+            console.warn('Demo data loading failed:', error);
+            transactions = [];
+            walletBalances = { ...DEFAULT_WALLET_BALANCES };
+            userSettings = { ...DEFAULT_USER_SETTINGS };
+        }
+    }
+
+    function saveDemoData() {
+        if (!isDemoMode()) return;
+        localStorage.setItem(STORAGE_KEYS.DEMO_DATA, JSON.stringify({
+            transactions,
+            walletBalances,
+            userSettings,
+        }));
+    }
+
+    function clearDemoData() {
+        localStorage.removeItem(STORAGE_KEYS.DEMO_DATA);
+        localStorage.removeItem(STORAGE_KEYS.DEMO_ACTION_COUNT);
+    }
+
+    function getDemoActionCount() {
+        return Number(localStorage.getItem(STORAGE_KEYS.DEMO_ACTION_COUNT) || 0);
+    }
+
+    function incrementDemoActionCount() {
+        if (!isDemoMode()) return 0;
+        const count = getDemoActionCount() + 1;
+        localStorage.setItem(STORAGE_KEYS.DEMO_ACTION_COUNT, String(count));
+        maybeShowLoginPrompt(count);
+        return count;
+    }
+
+    function maybeShowLoginPrompt(count = getDemoActionCount()) {
+        if (!isDemoMode()) return;
+        if (count === 5) {
+            openAuthModal('جربت Cashgo بنجاح. سجّل دخولك الآن لحفظ بياناتك ومتابعتها من أي جهاز.', 'success', {
+                allowContinueDemo: true,
+            });
+        } else if (count > 5 && count % 3 === 0) {
+            showToast('سجّل دخولك لحفظ بيانات التجربة والرجوع لها لاحقاً');
+        }
     }
 
     async function initializeFinancialData() {
@@ -344,7 +410,12 @@
     }
 
     async function loadActiveBanners() {
-        if (!supabaseClient || !authUser) return [];
+        if (!supabaseClient) return [];
+        if (!authUser) {
+            banners = [];
+            renderBannerSlider();
+            return [];
+        }
 
         try {
             const nowIso = new Date().toISOString();
@@ -845,7 +916,7 @@
 
     function updateAdminUI() {
         if (dom.openBannerAdminBtn) {
-            dom.openBannerAdminBtn.classList.toggle('hidden', !isBannerAdmin);
+            dom.openBannerAdminBtn.classList.toggle('hidden', isDemoMode() || !isBannerAdmin);
         }
     }
 
@@ -878,9 +949,12 @@
         authLoginBtn: $('#auth-login-btn'),
         authSignupBtn: $('#auth-signup-btn'),
         authGoogleBtn: $('#auth-google-btn'),
+        authCloseBtn: $('#auth-close-btn'),
+        authContinueDemoBtn: $('#auth-continue-demo-btn'),
         authMessage: $('#auth-message'),
         splash: $('#splash-screen'),
         app: $('#app'),
+        headerLoginBtn: $('#header-login-btn'),
         pageTitle: $('#page-title'),
         headerDate: $('#header-date'),
 
@@ -897,6 +971,8 @@
         bannerSlider: $('#banner-slider'),
         bannerTrack: $('#banner-track'),
         bannerDots: $('#banner-dots'),
+        demoNotice: $('#demo-notice'),
+        saveDemoDataBtn: $('#save-demo-data-btn'),
         cashTotal: $('#cash-total'),
         cardTotal: $('#card-total'),
         recentTransactions: $('#recent-transactions'),
@@ -1092,6 +1168,31 @@
             dom.authGoogleBtn.addEventListener('click', signInWithGoogle);
         }
 
+        if (dom.authCloseBtn) {
+            dom.authCloseBtn.addEventListener('click', closeAuthModal);
+        }
+
+        if (dom.authContinueDemoBtn) {
+            dom.authContinueDemoBtn.addEventListener('click', closeAuthModal);
+        }
+
+        if (dom.headerLoginBtn) {
+            dom.headerLoginBtn.addEventListener('click', () => openAuthModal());
+        }
+
+        if (dom.saveDemoDataBtn) {
+            dom.saveDemoDataBtn.addEventListener('click', () => openAuthModal(
+                'سجّل دخولك لحفظ بياناتك والرجوع لها من أي جهاز.',
+                ''
+            ));
+        }
+
+        if (dom.authScreen) {
+            dom.authScreen.addEventListener('click', (event) => {
+                if (event.target === dom.authScreen && isDemoMode()) closeAuthModal();
+            });
+        }
+
         dom.logoutBtn.addEventListener('click', () => {
             signOutUser();
         });
@@ -1099,7 +1200,8 @@
 
     async function initAuth() {
         if (!supabaseClient) {
-            showAuthOnly('أضف رابط Supabase والمفتاح العام في ملف app.js أولاً.', 'error');
+            switchToDemoMode();
+            openAuthModal('أضف رابط Supabase والمفتاح العام في ملف app.js أولاً.', 'error');
             updateAccountUI(null);
             return;
         }
@@ -1114,12 +1216,12 @@
             if (session && session.user) {
                 await handleAuthenticatedUser(session.user);
             } else {
-                showAuthOnly();
-                updateAccountUI(null);
+                switchToDemoMode();
             }
         } catch (error) {
             console.error('Supabase auth init failed:', error);
-            showAuthOnly(`تعذر الاتصال بـ Supabase: ${getReadableSupabaseError(error)}`, 'error');
+            switchToDemoMode();
+            openAuthModal(`تعذر الاتصال بـ Supabase: ${getReadableSupabaseError(error)}`, 'error');
             updateAccountUI(null);
         }
     }
@@ -1135,35 +1237,35 @@
             }
 
             authUser = null;
+            demoMode = true;
             isBannerAdmin = false;
             appFlowStarted = false;
-            transactions = [];
-            walletBalances = { ...DEFAULT_WALLET_BALANCES };
-            userSettings = { ...DEFAULT_USER_SETTINGS };
             banners = [];
             viewedBannerIds = new Set();
             stopBannerAutoSlide();
             renderBannerSlider();
             updateAdminUI();
-            updateAccountUI(null);
-            showAuthOnly(
-                event === 'SIGNED_OUT' ? 'تم تسجيل الخروج بنجاح.' : '',
-                event === 'SIGNED_OUT' ? 'success' : ''
-            );
+            switchToDemoMode(event === 'SIGNED_OUT' ? 'تم تسجيل الخروج بنجاح.' : '');
         });
     }
 
     async function handleAuthenticatedUser(user) {
         authUser = user;
+        demoMode = false;
         updateAccountUI(authUser);
         await refreshAdminAccess();
 
         try {
             await initializeFinancialData();
             startAuthenticatedFlow();
+            if (localStorage.getItem(STORAGE_KEYS.DEMO_DATA)) {
+                showToast('لديك بيانات تجربة مؤقتة. يمكننا إضافة خيار نقلها لحسابك لاحقاً.');
+            } else {
+                showToast('تم تسجيل الدخول بنجاح. بيانات حسابك محفوظة الآن.');
+            }
         } catch (error) {
             console.error('Financial data load failed:', error);
-            showAuthOnly(`تم تسجيل الدخول، لكن تعذر تحميل البيانات المالية: ${getReadableSupabaseError(error)}`, 'error');
+            openAuthModal(`تم تسجيل الدخول، لكن تعذر تحميل البيانات المالية: ${getReadableSupabaseError(error)}`, 'error');
         }
     }
 
@@ -1292,18 +1394,55 @@
         return true;
     }
 
-    function showAuthOnly(message = '', type = '') {
+    function openAuthModal(message = '', type = '', options = {}) {
         updateAuthMode('login', { keepMessage: true });
-        if (dom.splash) dom.splash.classList.add('hidden');
-        if (dom.app) dom.app.classList.add('hidden');
         if (dom.authScreen) {
             dom.authScreen.classList.remove('hidden');
             dom.authScreen.hidden = false;
+        }
+        if (dom.authContinueDemoBtn) {
+            dom.authContinueDemoBtn.classList.toggle('hidden', !options.allowContinueDemo);
         }
         setAuthMessage(message, type);
         setTimeout(() => {
             if (dom.authEmail) dom.authEmail.focus();
         }, 120);
+    }
+
+    function closeAuthModal() {
+        if (dom.authScreen) {
+            dom.authScreen.classList.add('hidden');
+            dom.authScreen.hidden = true;
+        }
+        if (dom.authContinueDemoBtn) {
+            dom.authContinueDemoBtn.classList.add('hidden');
+        }
+        setAuthLoading(false);
+        setAuthMessage('');
+    }
+
+    function showAuthOnly(message = '', type = '') {
+        openAuthModal(message, type);
+    }
+
+    function switchToDemoMode(message = '') {
+        authUser = null;
+        demoMode = true;
+        isBannerAdmin = false;
+        appFlowStarted = true;
+        loadDemoData();
+        updateAdminUI();
+        updateAccountUI(null);
+        updateDemoUI();
+        updateDistributionSummary();
+        updateCurrencyBadges();
+        if (dom.splash) dom.splash.classList.add('hidden');
+        if (dom.app) dom.app.classList.remove('hidden');
+        closeAuthModal();
+        updateHome();
+        updateAnalytics();
+        loadActiveBanners();
+        if (message) showToast(message);
     }
 
     function startAuthenticatedFlow() {
@@ -1326,9 +1465,23 @@
     function updateAccountUI(user) {
         if (!dom.accountEmail) return;
 
-        dom.accountEmail.textContent = user && user.email ? user.email : 'غير مسجل';
+        dom.accountEmail.textContent = user && user.email ? user.email : 'وضع التجربة';
         if (dom.logoutBtn) {
             dom.logoutBtn.hidden = !user;
+        }
+        updateDemoUI();
+    }
+
+    function updateDemoUI() {
+        const demo = isDemoMode();
+        if (dom.headerLoginBtn) {
+            dom.headerLoginBtn.classList.toggle('hidden', !demo);
+        }
+        if (dom.demoNotice) {
+            dom.demoNotice.classList.toggle('hidden', !demo);
+        }
+        if (dom.openBannerAdminBtn) {
+            dom.openBannerAdminBtn.classList.toggle('hidden', demo || !isBannerAdmin);
         }
     }
 
@@ -1458,6 +1611,20 @@
             return;
         }
 
+        if (isDemoMode()) {
+            userSettings = normalizeUserSettings({
+                ...userSettings,
+                expenses_percentage: expensesPercentage,
+                savings_percentage: savingsPercentage,
+                emergency_percentage: emergencyPercentage,
+            });
+            saveDemoData();
+            updateDistributionSummary();
+            closeDistributionModal();
+            showToast('تم حفظ توزيع الدخل في وضع التجربة');
+            return;
+        }
+
         try {
             dom.saveDistributionBtn.disabled = true;
             await saveUserSettings({
@@ -1512,6 +1679,34 @@
             return;
         }
 
+        if (isDemoMode()) {
+            const transferDate = dom.transferDate.value || new Date().toISOString().split('T')[0];
+            const transferRecord = {
+                id: `demo-${generateId()}`,
+                type: 'transfer',
+                amount,
+                description: dom.transferNote.value.trim(),
+                fromWallet,
+                toWallet,
+                date: transferDate,
+                createdAt: Date.now(),
+            };
+
+            walletBalances = normalizeWalletBalances({
+                ...walletBalances,
+                [getWalletBalanceKey(fromWallet)]: getWalletBalance(fromWallet) - amount,
+                [getWalletBalanceKey(toWallet)]: getWalletBalance(toWallet) + amount,
+            });
+            transactions = [transferRecord, ...transactions].sort((a, b) => getCreatedTime(b) - getCreatedTime(a));
+            saveDemoData();
+            incrementDemoActionCount();
+            updateHome();
+            updateAnalytics();
+            closeTransferModal();
+            showToast('تم تحويل المبلغ في وضع التجربة');
+            return;
+        }
+
         try {
             dom.saveTransferBtn.disabled = true;
             const userId = requireFinancialUser();
@@ -1536,7 +1731,11 @@
                 [getWalletBalanceKey(toWallet)]: getWalletBalance(toWallet) + amount,
             });
 
-            await loadRecentRecords();
+            if (isDemoMode()) {
+                saveDemoData();
+            } else {
+                await loadRecentRecords();
+            }
             updateHome();
             updateAnalytics();
             closeTransferModal();
@@ -1624,6 +1823,28 @@
 
     async function updateIncomeRecord(record, amount, note, date) {
         const parts = getIncomePartsForAmount(record, amount);
+        if (isDemoMode()) {
+            const oldAmount = Number(record.amount || 0);
+            const oldExpensesAmount = Number(record.expensesAmount || 0);
+            const oldSavingsAmount = Number(record.savingsAmount || 0);
+            const oldEmergencyAmount = Number(record.emergencyAmount || 0);
+
+            record.amount = amount;
+            record.description = note;
+            record.date = date;
+            record.expensesAmount = parts.expensesAmount;
+            record.savingsAmount = parts.savingsAmount;
+            record.emergencyAmount = parts.emergencyAmount;
+            walletBalances = normalizeWalletBalances({
+                expenses_balance: getWalletBalance('expenses') - oldExpensesAmount + parts.expensesAmount,
+                savings_balance: getWalletBalance('savings') - oldSavingsAmount + parts.savingsAmount,
+                emergency_balance: getWalletBalance('emergency') - oldEmergencyAmount + parts.emergencyAmount,
+                total_income: Number(walletBalances.total_income || 0) - oldAmount + amount,
+                total_spent: Number(walletBalances.total_spent || 0),
+            });
+            return;
+        }
+
         const { error } = await supabaseClient
             .from('incomes')
             .update({
@@ -1680,6 +1901,16 @@
         }
         temporaryBalances.total_spent = Number(walletBalances.total_spent || 0) - Number(record.amount || 0) + amount;
 
+        if (isDemoMode()) {
+            record.amount = amount;
+            record.description = note;
+            record.date = date;
+            record.sourceWallet = newParts[0]?.source_wallet || record.sourceWallet || 'expenses';
+            record.walletSplits = record.walletSplits && record.walletSplits.length ? newParts : [];
+            walletBalances = normalizeWalletBalances(temporaryBalances);
+            return;
+        }
+
         const { error } = await supabaseClient
             .from('transactions')
             .update({
@@ -1730,6 +1961,14 @@
         temporaryBalances[fromKey] = Number(temporaryBalances[fromKey] || 0) - amount;
         temporaryBalances[getWalletBalanceKey(record.toWallet)] = Number(temporaryBalances[getWalletBalanceKey(record.toWallet)] || 0) + amount;
 
+        if (isDemoMode()) {
+            record.amount = amount;
+            record.description = note;
+            record.date = date;
+            walletBalances = normalizeWalletBalances(temporaryBalances);
+            return;
+        }
+
         const { error } = await supabaseClient
             .from('wallet_transfers')
             .update({
@@ -1749,12 +1988,12 @@
 
         const isSignup = authMode === 'signup';
         if (dom.authTitle) {
-            dom.authTitle.textContent = isSignup ? 'إنشاء حساب Cashgo' : 'Cashgo';
+            dom.authTitle.textContent = isSignup ? 'إنشاء حساب Cashgo' : 'تسجيل الدخول إلى Cashgo';
         }
         if (dom.authSubtitle) {
             dom.authSubtitle.textContent = isSignup
                 ? 'أنشئ حسابك لحفظ بياناتك بأمان'
-                : 'إدارة مصروفاتك اليومية بسهولة';
+                : 'سجّل دخولك لحفظ بياناتك والرجوع لها من أي جهاز';
         }
         if (dom.authPassword) {
             dom.authPassword.autocomplete = isSignup ? 'new-password' : 'current-password';
@@ -2037,6 +2276,18 @@
 
         dom.clearDataBtn.addEventListener('click', async () => {
             if (confirm('هل أنت متأكد من حذف جميع البيانات؟ لا يمكن التراجع عن هذا الإجراء.')) {
+                if (isDemoMode()) {
+                    transactions = [];
+                    walletBalances = { ...DEFAULT_WALLET_BALANCES };
+                    clearDemoData();
+                    saveDemoData();
+                    updateHome();
+                    updateAnalytics();
+                    dom.settingsModal.classList.remove('active');
+                    showToast('تم مسح بيانات التجربة');
+                    return;
+                }
+
                 try {
                     const userId = requireFinancialUser();
                     const [incomeDelete, expenseDelete, transferDelete] = await Promise.all([
@@ -2196,14 +2447,48 @@
             throw error;
         }
 
-        const userId = requireFinancialUser();
         const expenseDate = dom.expenseDate.value || new Date().toISOString().split('T')[0];
         const category = activeCategory ? activeCategory.dataset.category : 'food';
         const paymentMethod = activePayment ? activePayment.dataset.method : 'cash';
         const sourceWallet = walletParts[0] ? walletParts[0].source_wallet : 'expenses';
 
+        if (isDemoMode()) {
+            const demoId = `demo-${generateId()}`;
+            const expenseRecord = {
+                id: demoId,
+                type: 'expense',
+                amount,
+                description: dom.expenseDesc.value.trim(),
+                category,
+                sourceWallet,
+                walletSplits: walletParts.length > 1 ? walletParts : [],
+                paymentMethod,
+                date: expenseDate,
+                createdAt: Date.now(),
+            };
+
+            transactions = [expenseRecord, ...transactions].sort((a, b) => getCreatedTime(b) - getCreatedTime(a));
+            walletBalances = applyExpensePartsToBalances(walletParts, amount);
+            saveDemoData();
+            incrementDemoActionCount();
+            updateHome();
+            updateAnalytics();
+
+            dom.expenseAmount.value = '';
+            dom.expenseDesc.value = '';
+            if (dom.splitExpenseCheckbox) {
+                dom.splitExpenseCheckbox.checked = false;
+                dom.splitExpensePanel.classList.add('hidden');
+            }
+            resetSplitExpenseFields();
+            showToast('تمت إضافة المصروف في وضع التجربة');
+            setTimeout(() => navigateTo('home'), 500);
+            return;
+        }
+
         try {
             dom.addExpenseBtn.disabled = true;
+            const userId = requireFinancialUser();
 
             const { data: insertedTransaction, error } = await supabaseClient
                 .from('transactions')
@@ -2268,14 +2553,47 @@
             return;
         }
 
-        const userId = requireFinancialUser();
         const expensesAmount = amount * Number(userSettings.expenses_percentage || 0) / 100;
         const savingsAmount = amount * Number(userSettings.savings_percentage || 0) / 100;
         const emergencyAmount = amount * Number(userSettings.emergency_percentage || 0) / 100;
         const incomeDate = dom.incomeDate.value || new Date().toISOString().split('T')[0];
 
+        if (isDemoMode()) {
+            const incomeRecord = {
+                id: `demo-${generateId()}`,
+                type: 'income',
+                amount,
+                description: dom.incomeDesc.value.trim(),
+                date: incomeDate,
+                createdAt: Date.now(),
+                expensesAmount,
+                savingsAmount,
+                emergencyAmount,
+            };
+
+            transactions = [incomeRecord, ...transactions].sort((a, b) => getCreatedTime(b) - getCreatedTime(a));
+            walletBalances = normalizeWalletBalances({
+                expenses_balance: Number(walletBalances.expenses_balance || 0) + expensesAmount,
+                savings_balance: Number(walletBalances.savings_balance || 0) + savingsAmount,
+                emergency_balance: Number(walletBalances.emergency_balance || 0) + emergencyAmount,
+                total_income: Number(walletBalances.total_income || 0) + amount,
+                total_spent: Number(walletBalances.total_spent || 0),
+            });
+            saveDemoData();
+            incrementDemoActionCount();
+            updateHome();
+            updateAnalytics();
+
+            dom.incomeAmount.value = '';
+            dom.incomeDesc.value = '';
+            showToast('تمت إضافة الدخل في وضع التجربة');
+            setTimeout(() => navigateTo('home'), 500);
+            return;
+        }
+
         try {
             dom.addIncomeBtn.disabled = true;
+            const userId = requireFinancialUser();
 
             const { error } = await supabaseClient
                 .from('incomes')
@@ -2323,6 +2641,42 @@
         if (!tx) return;
 
         try {
+            if (isDemoMode()) {
+                if (tx.type === 'income') {
+                    walletBalances = normalizeWalletBalances({
+                        expenses_balance: Number(walletBalances.expenses_balance || 0) - Number(tx.expensesAmount || 0),
+                        savings_balance: Number(walletBalances.savings_balance || 0) - Number(tx.savingsAmount || 0),
+                        emergency_balance: Number(walletBalances.emergency_balance || 0) - Number(tx.emergencyAmount || 0),
+                        total_income: Number(walletBalances.total_income || 0) - Number(tx.amount || 0),
+                        total_spent: Number(walletBalances.total_spent || 0),
+                    });
+                } else if (tx.type === 'expense') {
+                    const refundParts = tx.walletSplits && tx.walletSplits.length
+                        ? tx.walletSplits
+                        : [{ source_wallet: tx.sourceWallet || 'expenses', amount: Number(tx.amount || 0) }];
+                    const nextBalances = { ...walletBalances };
+                    refundParts.forEach((part) => {
+                        const key = getWalletBalanceKey(part.source_wallet);
+                        nextBalances[key] = Number(nextBalances[key] || 0) + Number(part.amount || 0);
+                    });
+                    nextBalances.total_spent = Math.max(0, Number(walletBalances.total_spent || 0) - Number(tx.amount || 0));
+                    walletBalances = normalizeWalletBalances(nextBalances);
+                } else if (tx.type === 'transfer') {
+                    walletBalances = normalizeWalletBalances({
+                        ...walletBalances,
+                        [getWalletBalanceKey(tx.fromWallet)]: getWalletBalance(tx.fromWallet) + Number(tx.amount || 0),
+                        [getWalletBalanceKey(tx.toWallet)]: getWalletBalance(tx.toWallet) - Number(tx.amount || 0),
+                    });
+                }
+
+                transactions = transactions.filter(item => item.id !== id);
+                saveDemoData();
+                updateHome();
+                updateAnalytics();
+                showToast('تم حذف المعاملة من التجربة');
+                return;
+            }
+
             if (tx.type === 'income') {
                 const { error } = await supabaseClient
                     .from('incomes')
@@ -3199,7 +3553,7 @@
         if (!('serviceWorker' in navigator)) return;
 
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js?v=26', { scope: './' })
+            navigator.serviceWorker.register('./sw.js?v=27', { scope: './' })
                 .then((registration) => {
                     registration.update();
                 })

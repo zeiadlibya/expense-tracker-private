@@ -19,12 +19,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=26">
+    <link rel="stylesheet" href="style.css?v=27">
 </head>
 <body>
     <!-- Supabase Authentication -->
     <div id="auth-screen" class="auth-screen hidden" aria-label="تسجيل الدخول إلى Cashgo">
         <div class="auth-card">
+            <button class="auth-close-btn" id="auth-close-btn" type="button" aria-label="إغلاق تسجيل الدخول">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
             <span class="brand-mark brand-mark-large" aria-hidden="true">
                 <svg viewBox="0 0 120 120" focusable="false">
                     <path class="cashgo-symbol-main" d="M77 36H54c-16 0-26 10-26 25s10 25 27 25h25V72H55c-8 0-13-5-13-12s5-12 13-12h22V36Z"/>
@@ -51,6 +54,7 @@
                     <span class="google-mark" aria-hidden="true">G</span>
                     <span>تسجيل الدخول باستخدام Google</span>
                 </button>
+                <button id="auth-continue-demo-btn" class="auth-demo-btn hidden" type="button">متابعة التجربة</button>
             </form>
         </div>
     </div>
@@ -99,6 +103,7 @@
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                     </svg>
                 </button>
+                <button class="header-login-btn hidden" id="header-login-btn" type="button">تسجيل الدخول</button>
             </div>
         </header>
 
@@ -112,6 +117,11 @@
                     <div class="banner-slider hidden" id="banner-slider" aria-label="إعلانات">
                         <div class="banner-track" id="banner-track"></div>
                         <div class="banner-dots" id="banner-dots" aria-label="شرائح الإعلان"></div>
+                    </div>
+
+                    <div class="demo-notice hidden" id="demo-notice">
+                        <p>أنت تستخدم Cashgo كتجربة. سجّل دخولك لحفظ بياناتك والرجوع لها من أي جهاز.</p>
+                        <button id="save-demo-data-btn" type="button">حفظ بياناتي</button>
                     </div>
 
                     <!-- Total Balance Card -->
@@ -807,6 +817,6 @@
 
     </div>
 
-    <script src="app.js?v=26"></script>
+    <script src="app.js?v=27"></script>
 </body>
 </html>
