@@ -409,7 +409,10 @@
         }
 
         const original = textOriginals.get(node) || node.nodeValue;
-        node.nodeValue = translateText(original);
+        const translated = translateText(original);
+        if (node.nodeValue !== translated) {
+            node.nodeValue = translated;
+        }
     }
 
     function translateElementAttributes(element) {
@@ -429,7 +432,10 @@
                 element.dataset[dataKey] = value;
             }
 
-            element.setAttribute(attribute, translateText(element.dataset[dataKey] || value));
+            const translated = translateText(element.dataset[dataKey] || value);
+            if (element.getAttribute(attribute) !== translated) {
+                element.setAttribute(attribute, translated);
+            }
         });
     }
 
@@ -476,29 +482,24 @@
             : translateText(document.documentElement.dataset.originalTitle);
     }
 
+    function refreshLanguage() {
+        if (appLanguage !== 'en') return;
+        window.requestAnimationFrame(() => translatePage());
+    }
+
     function startLanguageObserver() {
         if (languageObserver || !document.body) return;
 
         languageObserver = new MutationObserver((mutations) => {
             if (appLanguage !== 'en') return;
             mutations.forEach((mutation) => {
-                if (mutation.type === 'characterData') {
-                    translateTextNode(mutation.target);
-                    return;
-                }
                 mutation.addedNodes.forEach((node) => translateElement(node));
-                if (mutation.type === 'attributes') {
-                    translateElementAttributes(mutation.target);
-                }
             });
         });
 
         languageObserver.observe(document.body, {
             childList: true,
             subtree: true,
-            characterData: true,
-            attributes: true,
-            attributeFilter: ['placeholder', 'aria-label', 'title'],
         });
     }
 
@@ -3431,6 +3432,7 @@
         updateDistributionSummary();
 
         renderRecentTransactions();
+        refreshLanguage();
     }
 
     // ==========================================
@@ -3857,6 +3859,7 @@
         updateIncomeDistChart(monthSavings, monthExpensesSplit, monthEmergency);
         updateSpendingTrendChart(scopedTransactions);
         updateRecordsPanel();
+        refreshLanguage();
     }
 
     function updateRecordsPanel() {
@@ -4190,7 +4193,7 @@
         if (!('serviceWorker' in navigator)) return;
 
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js?v=34', { scope: './' })
+            navigator.serviceWorker.register('./sw.js?v=35', { scope: './' })
                 .then((registration) => {
                     registration.update();
                 })
