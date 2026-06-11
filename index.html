@@ -19,7 +19,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=36">
+    <link rel="stylesheet" href="style.css?v=38">
 </head>
 <body>
     <!-- Supabase Authentication -->
@@ -581,6 +581,20 @@
                     </section>
 
                     <section class="settings-section">
+                        <h4>الملفات الشخصية</h4>
+                        <div class="profile-active-summary" id="active-profile-summary">
+                            <span class="profile-avatar avatar_1" id="active-profile-avatar">م</span>
+                            <div>
+                                <span class="account-label">الملف الحالي</span>
+                                <strong id="active-profile-name">الرئيسي</strong>
+                            </div>
+                        </div>
+                        <div class="profiles-grid" id="account-profiles-list"></div>
+                        <p class="profile-hint hidden" id="profiles-message"></p>
+                        <button class="setting-admin-btn profile-add-btn" id="add-profile-btn" type="button">+ إضافة ملف شخصي</button>
+                    </section>
+
+                    <section class="settings-section">
                         <h4>توزيع الدخل</h4>
                         <div class="setting-item">
                             <span>العملة</span>
@@ -643,6 +657,37 @@
                             <button class="danger-btn" id="clear-data-btn">مسح الكل</button>
                         </div>
                     </section>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Profile Modal -->
+        <div class="modal-overlay" id="profile-modal">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3>إضافة ملف شخصي</h3>
+                    <button class="modal-close" id="close-profile-modal" type="button">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="avatar-picker" id="profile-avatar-picker" aria-label="اختيار صورة الملف">
+                        <button class="avatar-choice active avatar_1" type="button" data-avatar-key="avatar_1">م</button>
+                        <button class="avatar-choice avatar_2" type="button" data-avatar-key="avatar_2">ب</button>
+                        <button class="avatar-choice avatar_3" type="button" data-avatar-key="avatar_3">ع</button>
+                        <button class="avatar-choice avatar_4" type="button" data-avatar-key="avatar_4">د</button>
+                        <button class="avatar-choice avatar_5" type="button" data-avatar-key="avatar_5">س</button>
+                        <button class="avatar-choice avatar_6" type="button" data-avatar-key="avatar_6">ن</button>
+                    </div>
+                    <label class="form-group">
+                        <span>اسم الملف</span>
+                        <input id="profile-name-input" type="text" maxlength="30" placeholder="مثال: البيت">
+                    </label>
+                    <p class="form-error" id="profile-error"></p>
+                    <div class="modal-actions">
+                        <button class="secondary-action" id="cancel-profile-btn" type="button">إلغاء</button>
+                        <button class="primary-action" id="create-profile-btn" type="button">إنشاء الملف</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -866,6 +911,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=36"></script>
+    <script src="app.js?v=38"></script>
 </body>
 </html>

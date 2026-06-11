@@ -36,10 +36,21 @@
         UI_THEME: 'cashgo_ui_theme',
         UI_COLOR_THEME: 'cashgo_ui_color_theme',
         UI_LANGUAGE: 'cashgo_ui_language',
+        ACTIVE_PROFILE_ID: 'cashgo_active_profile_id',
         DEMO_DATA: 'cashgo_demo_data',
         DEMO_ACTION_COUNT: 'cashgo_demo_action_count',
     };
     const SUPPORTED_LANGUAGES = ['ar', 'en'];
+    const DEFAULT_PROFILE_NAME = 'الرئيسي';
+    const MAX_ACCOUNT_PROFILES = 3;
+    const PROFILE_AVATARS = {
+        avatar_1: 'م',
+        avatar_2: 'ب',
+        avatar_3: 'ع',
+        avatar_4: 'د',
+        avatar_5: 'س',
+        avatar_6: 'ن',
+    };
     const TEXT_TRANSLATIONS = {
         'محفظتي - إدارة المصروفات والدخل': 'Cashgo - Expense and Income Manager',
         'إدارة مصروفاتك اليومية بسهولة': 'Manage your daily expenses easily',
@@ -129,6 +140,23 @@
         'تمت الإضافة بنجاح': 'Added successfully',
         'الإعدادات': 'Settings',
         'الحساب': 'Account',
+        'الملفات الشخصية': 'Profiles',
+        'الملف الحالي': 'Current profile',
+        'الرئيسي': 'Main',
+        '+ إضافة ملف شخصي': '+ Add profile',
+        'إضافة ملف شخصي': 'Add profile',
+        'سجّل الدخول لإضافة ملف': 'Log in to add a profile',
+        'الملفات الشخصية متاحة بعد تسجيل الدخول': 'Profiles are available after login',
+        'يمكنك إنشاء حتى 3 ملفات شخصية فقط': 'You can create up to 3 profiles only',
+        'اضغط للتبديل': 'Tap to switch',
+        'اختيار صورة الملف': 'Choose profile avatar',
+        'اسم الملف': 'Profile name',
+        'مثال: البيت': 'Example: Home',
+        'إنشاء الملف': 'Create profile',
+        'اكتب اسم الملف الشخصي': 'Enter the profile name',
+        'تم إنشاء الملف الشخصي بنجاح': 'Profile created successfully',
+        'تم تبديل الملف الشخصي': 'Profile switched',
+        'تعذر إنشاء الملف الشخصي': 'Could not create profile',
         'غير مسجل': 'Not signed in',
         'وضع التجربة': 'Demo mode',
         'تسجيل الخروج': 'Log out',
@@ -318,6 +346,9 @@
     let appFlowStarted = false;
     let authMode = 'login';
     let authStateListenerAttached = false;
+    let accountProfiles = [];
+    let activeProfileId = null;
+    let selectedProfileAvatar = 'avatar_1';
     let recordFilterMode = 'month';
     let editTargetId = null;
     let recordTypeFilter = 'all';
@@ -622,6 +653,7 @@
 
         try {
             const userId = authUser.id;
+            const profileId = requireActiveProfileId();
             const incomes = demoTransactions.filter((record) => record.type === 'income');
             const expenses = demoTransactions.filter((record) => record.type === 'expense');
             const transfers = demoTransactions.filter((record) => record.type === 'transfer');
@@ -631,6 +663,7 @@
                     .from('incomes')
                     .insert(incomes.map((record) => ({
                         user_id: userId,
+                        profile_id: profileId,
                         amount: Number(record.amount || 0),
                         note: record.description || '',
                         income_date: record.date || new Date().toISOString().split('T')[0],
@@ -646,6 +679,7 @@
                     .from('transactions')
                     .insert({
                         user_id: userId,
+                        profile_id: profileId,
                         amount: Number(record.amount || 0),
                         category: record.category || 'food',
                         source_wallet: record.sourceWallet || 'expenses',
@@ -665,6 +699,7 @@
                         .insert(splitParts.map((part) => ({
                             transaction_id: data.id,
                             user_id: userId,
+                            profile_id: profileId,
                             source_wallet: part.source_wallet,
                             amount: Number(part.amount || 0),
                         })));
@@ -677,6 +712,7 @@
                     .from('wallet_transfers')
                     .insert(transfers.map((record) => ({
                         user_id: userId,
+                        profile_id: profileId,
                         from_wallet: record.fromWallet || 'expenses',
                         to_wallet: record.toWallet || 'savings',
                         amount: Number(record.amount || 0),
@@ -703,6 +739,7 @@
     }
 
     async function initializeFinancialData() {
+        await ensureDefaultProfile();
         await loadUserSettings();
         await loadWalletBalances();
         await loadRecentRecords();
@@ -720,6 +757,7 @@
             .from('user_settings')
             .select('expenses_percentage, savings_percentage, emergency_percentage, currency, theme, color_theme')
             .eq('user_id', userId)
+            .eq('profile_id', requireActiveProfileId())
             .maybeSingle();
 
         if (isMissingColorThemeColumn(error)) {
@@ -729,6 +767,7 @@
                 .from('user_settings')
                 .select('expenses_percentage, savings_percentage, emergency_percentage, currency, theme')
                 .eq('user_id', userId)
+                .eq('profile_id', requireActiveProfileId())
                 .maybeSingle();
             data = fallback.data;
             error = fallback.error;
@@ -737,7 +776,7 @@
         if (error) throw error;
 
         if (!data) {
-            const defaults = { user_id: userId, ...DEFAULT_USER_SETTINGS };
+            const defaults = { user_id: userId, profile_id: requireActiveProfileId(), ...DEFAULT_USER_SETTINGS };
             if (!supportsColorTheme) delete defaults.color_theme;
             const { data: inserted, error: insertError } = await supabaseClient
                 .from('user_settings')
@@ -770,6 +809,7 @@
 
         const payload = {
             user_id: userId,
+            profile_id: requireActiveProfileId(),
             currency: nextSettings.currency || userSettings.currency || DEFAULT_USER_SETTINGS.currency,
             theme: nextSettings.theme || userSettings.theme || DEFAULT_USER_SETTINGS.theme,
             color_theme: nextSettings.color_theme || userSettings.color_theme || DEFAULT_USER_SETTINGS.color_theme,
@@ -782,6 +822,7 @@
             .from('user_settings')
             .update(payload)
             .eq('user_id', userId)
+            .eq('profile_id', requireActiveProfileId())
             .select('expenses_percentage, savings_percentage, emergency_percentage, currency, theme, color_theme')
             .maybeSingle();
 
@@ -822,12 +863,13 @@
             .from('wallet_balances')
             .select('expenses_balance, savings_balance, emergency_balance, total_income, total_spent')
             .eq('user_id', userId)
+            .eq('profile_id', requireActiveProfileId())
             .maybeSingle();
 
         if (error) throw error;
 
         if (!data) {
-            const defaults = { user_id: userId, ...DEFAULT_WALLET_BALANCES };
+            const defaults = { user_id: userId, profile_id: requireActiveProfileId(), ...DEFAULT_WALLET_BALANCES };
             const { data: inserted, error: insertError } = await supabaseClient
                 .from('wallet_balances')
                 .insert(defaults)
@@ -848,6 +890,7 @@
         const userId = requireFinancialUser();
         const payload = {
             user_id: userId,
+            profile_id: requireActiveProfileId(),
             expenses_balance: Number(nextBalances.expenses_balance || 0),
             savings_balance: Number(nextBalances.savings_balance || 0),
             emergency_balance: Number(nextBalances.emergency_balance || 0),
@@ -859,6 +902,7 @@
             .from('wallet_balances')
             .update(payload)
             .eq('user_id', userId)
+            .eq('profile_id', requireActiveProfileId())
             .select('expenses_balance, savings_balance, emergency_balance, total_income, total_spent')
             .maybeSingle();
 
@@ -882,6 +926,7 @@
     async function loadRecentRecords() {
         if (!supabaseClient) return transactions;
         const userId = requireFinancialUser();
+        const profileId = requireActiveProfileId();
         const recordsLimit = 1000;
 
         const [incomeResult, expenseResult, transferResult] = await Promise.all([
@@ -889,18 +934,21 @@
                 .from('incomes')
                 .select('id, amount, note, income_date, expenses_amount, savings_amount, emergency_amount, created_at')
                 .eq('user_id', userId)
+                .eq('profile_id', profileId)
                 .order('created_at', { ascending: false })
                 .limit(recordsLimit),
             supabaseClient
                 .from('transactions')
                 .select('id, amount, category, source_wallet, payment_method, note, transaction_date, created_at')
                 .eq('user_id', userId)
+                .eq('profile_id', profileId)
                 .order('created_at', { ascending: false })
                 .limit(recordsLimit),
             supabaseClient
                 .from('wallet_transfers')
                 .select('id, from_wallet, to_wallet, amount, note, transfer_date, created_at')
                 .eq('user_id', userId)
+                .eq('profile_id', profileId)
                 .order('created_at', { ascending: false })
                 .limit(recordsLimit),
         ]);
@@ -916,6 +964,7 @@
                 .from('transaction_wallet_splits')
                 .select('transaction_id, source_wallet, amount')
                 .eq('user_id', userId)
+                .eq('profile_id', profileId)
                 .in('transaction_id', expenseIds);
 
             if (splitResult.error) throw splitResult.error;
@@ -1428,6 +1477,133 @@
         return userId;
     }
 
+    function getActiveProfileId() {
+        return activeProfileId;
+    }
+
+    function requireActiveProfileId() {
+        if (!activeProfileId) {
+            throw new Error('Missing active account profile');
+        }
+        return activeProfileId;
+    }
+
+    function getActiveProfile() {
+        return accountProfiles.find((profile) => profile.id === activeProfileId) || null;
+    }
+
+    function getProfileAvatarText(avatarKey) {
+        return PROFILE_AVATARS[avatarKey] || PROFILE_AVATARS.avatar_1;
+    }
+
+    function saveActiveProfilePreference(profileId) {
+        if (!profileId) return;
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_PROFILE_ID, profileId);
+    }
+
+    function getProfileScopedQuery(query) {
+        return query
+            .eq('user_id', requireFinancialUser())
+            .eq('profile_id', requireActiveProfileId());
+    }
+
+    async function loadAccountProfiles() {
+        if (!supabaseClient || !authUser) return [];
+
+        const { data, error } = await supabaseClient
+            .from('account_profiles')
+            .select('id, user_id, name, avatar_key, is_default, created_at')
+            .eq('user_id', requireFinancialUser())
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+        accountProfiles = data || [];
+        return accountProfiles;
+    }
+
+    async function ensureDefaultProfile() {
+        await loadAccountProfiles();
+        if (accountProfiles.length === 0) {
+            const { data, error } = await supabaseClient
+                .from('account_profiles')
+                .insert({
+                    user_id: requireFinancialUser(),
+                    name: DEFAULT_PROFILE_NAME,
+                    avatar_key: 'avatar_1',
+                    is_default: true,
+                })
+                .select('id, user_id, name, avatar_key, is_default, created_at')
+                .single();
+
+            if (error) throw error;
+            accountProfiles = [data];
+        }
+
+        const savedProfileId = localStorage.getItem(STORAGE_KEYS.ACTIVE_PROFILE_ID);
+        const savedProfile = accountProfiles.find((profile) => profile.id === savedProfileId);
+        const defaultProfile = accountProfiles.find((profile) => profile.is_default) || accountProfiles[0];
+        activeProfileId = (savedProfile || defaultProfile).id;
+        saveActiveProfilePreference(activeProfileId);
+        renderAccountProfiles();
+        return getActiveProfile();
+    }
+
+    async function loadProfileData(profileId) {
+        activeProfileId = profileId || activeProfileId;
+        saveActiveProfilePreference(activeProfileId);
+        await loadUserSettings();
+        await loadWalletBalances();
+        await loadRecentRecords();
+        updateHome();
+        updateAnalytics();
+        renderAccountProfiles();
+    }
+
+    async function setActiveProfile(profileId) {
+        if (!profileId || profileId === activeProfileId) return;
+        await switchProfile(profileId);
+    }
+
+    async function switchProfile(profileId) {
+        const profile = accountProfiles.find((item) => item.id === profileId);
+        if (!profile) return;
+        await loadProfileData(profile.id);
+        showToast('تم تبديل الملف الشخصي');
+    }
+
+    async function createAccountProfile(name, avatarKey) {
+        if (!supabaseClient || isDemoMode()) {
+            openAuthModal('الملفات الشخصية متاحة بعد تسجيل الدخول', 'error', { allowContinueDemo: true });
+            return;
+        }
+
+        await loadAccountProfiles();
+        if (accountProfiles.length >= MAX_ACCOUNT_PROFILES) {
+            throw new Error('profiles_limit_reached');
+        }
+
+        const { data, error } = await supabaseClient
+            .from('account_profiles')
+            .insert({
+                user_id: requireFinancialUser(),
+                name,
+                avatar_key: avatarKey || 'avatar_1',
+                is_default: false,
+            })
+            .select('id, user_id, name, avatar_key, is_default, created_at')
+            .single();
+
+        if (error) throw error;
+
+        accountProfiles = [...accountProfiles, data];
+        activeProfileId = data.id;
+        saveActiveProfilePreference(activeProfileId);
+        await saveWalletBalances({ ...DEFAULT_WALLET_BALANCES });
+        await saveUserSettings({ ...DEFAULT_USER_SETTINGS });
+        await loadProfileData(activeProfileId);
+        return data;
+    }
+
     async function refreshAdminAccess() {
         isBannerAdmin = false;
 
@@ -1600,6 +1776,19 @@
         clearDataBtn: $('#clear-data-btn'),
         accountEmail: $('#account-email'),
         logoutBtn: $('#logout-btn'),
+        activeProfileSummary: $('#active-profile-summary'),
+        activeProfileAvatar: $('#active-profile-avatar'),
+        activeProfileName: $('#active-profile-name'),
+        accountProfilesList: $('#account-profiles-list'),
+        profilesMessage: $('#profiles-message'),
+        addProfileBtn: $('#add-profile-btn'),
+        profileModal: $('#profile-modal'),
+        closeProfileModal: $('#close-profile-modal'),
+        cancelProfileBtn: $('#cancel-profile-btn'),
+        createProfileBtn: $('#create-profile-btn'),
+        profileNameInput: $('#profile-name-input'),
+        profileAvatarPicker: $('#profile-avatar-picker'),
+        profileError: $('#profile-error'),
         bannerSettingsSection: $('#banner-settings-section'),
         openBannerAdminBtn: $('#open-banner-admin-btn'),
 
@@ -1800,6 +1989,8 @@
             demoMode = true;
             isBannerAdmin = false;
             appFlowStarted = false;
+            accountProfiles = [];
+            activeProfileId = null;
             banners = [];
             viewedBannerIds = new Set();
             stopBannerAutoSlide();
@@ -1994,6 +2185,8 @@
         authUser = null;
         demoMode = true;
         isBannerAdmin = false;
+        accountProfiles = [];
+        activeProfileId = null;
         appFlowStarted = true;
         loadDemoData();
         updateAdminUI();
@@ -2050,6 +2243,112 @@
         }
         if (dom.openBannerAdminBtn) {
             dom.openBannerAdminBtn.classList.toggle('hidden', demo || !isBannerAdmin);
+        }
+        renderAccountProfiles();
+    }
+
+    function renderAccountProfiles() {
+        const activeProfile = getActiveProfile();
+        const demo = isDemoMode();
+
+        if (dom.activeProfileAvatar) {
+            const avatarKey = activeProfile?.avatar_key || 'avatar_1';
+            dom.activeProfileAvatar.className = `profile-avatar ${avatarKey}`;
+            dom.activeProfileAvatar.textContent = demo ? 'ت' : getProfileAvatarText(avatarKey);
+        }
+
+        if (dom.activeProfileName) {
+            dom.activeProfileName.textContent = demo ? 'وضع التجربة' : (activeProfile?.name || DEFAULT_PROFILE_NAME);
+        }
+
+        if (dom.profilesMessage) {
+            const message = demo
+                ? 'الملفات الشخصية متاحة بعد تسجيل الدخول'
+                : accountProfiles.length >= MAX_ACCOUNT_PROFILES
+                    ? 'يمكنك إنشاء حتى 3 ملفات شخصية فقط'
+                    : '';
+            dom.profilesMessage.textContent = message;
+            dom.profilesMessage.classList.toggle('hidden', !message);
+        }
+
+        if (dom.addProfileBtn) {
+            dom.addProfileBtn.disabled = !demo && accountProfiles.length >= MAX_ACCOUNT_PROFILES;
+            dom.addProfileBtn.textContent = demo ? 'سجّل الدخول لإضافة ملف' : '+ إضافة ملف شخصي';
+        }
+
+        if (!dom.accountProfilesList) return;
+        dom.accountProfilesList.innerHTML = '';
+
+        if (demo) {
+            return;
+        }
+
+        accountProfiles.forEach((profile) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `profile-card${profile.id === activeProfileId ? ' active' : ''}`;
+            btn.dataset.profileId = profile.id;
+            const avatarKey = profile.avatar_key || 'avatar_1';
+            btn.innerHTML = `
+                <span class="profile-avatar ${avatarKey}">${getProfileAvatarText(avatarKey)}</span>
+                <span>
+                    <strong>${escapeHTML(profile.name || DEFAULT_PROFILE_NAME)}</strong>
+                    <small>${profile.id === activeProfileId ? 'الملف الحالي' : 'اضغط للتبديل'}</small>
+                </span>
+            `;
+            dom.accountProfilesList.appendChild(btn);
+        });
+        refreshLanguage();
+    }
+
+    function openProfileModal() {
+        if (isDemoMode()) {
+            openAuthModal('الملفات الشخصية متاحة بعد تسجيل الدخول', 'error', { allowContinueDemo: true });
+            return;
+        }
+        if (accountProfiles.length >= MAX_ACCOUNT_PROFILES) {
+            showToast('يمكنك إنشاء حتى 3 ملفات شخصية فقط');
+            return;
+        }
+        selectedProfileAvatar = 'avatar_1';
+        if (dom.profileNameInput) dom.profileNameInput.value = '';
+        if (dom.profileError) dom.profileError.textContent = '';
+        updateAvatarPicker();
+        if (dom.profileModal) dom.profileModal.classList.add('active');
+    }
+
+    function closeProfileModal() {
+        if (dom.profileModal) dom.profileModal.classList.remove('active');
+    }
+
+    function updateAvatarPicker() {
+        if (!dom.profileAvatarPicker) return;
+        dom.profileAvatarPicker.querySelectorAll('.avatar-choice').forEach((btn) => {
+            btn.classList.toggle('active', btn.dataset.avatarKey === selectedProfileAvatar);
+        });
+    }
+
+    async function handleCreateProfile() {
+        const name = dom.profileNameInput ? dom.profileNameInput.value.trim() : '';
+        if (!name) {
+            if (dom.profileError) dom.profileError.textContent = 'اكتب اسم الملف الشخصي';
+            return;
+        }
+
+        try {
+            dom.createProfileBtn.disabled = true;
+            await createAccountProfile(name.slice(0, 30), selectedProfileAvatar);
+            closeProfileModal();
+            showToast('تم إنشاء الملف الشخصي بنجاح');
+        } catch (error) {
+            console.error('Failed to create account profile:', error);
+            if (dom.profileError) {
+                dom.profileError.textContent = error.message === 'profiles_limit_reached'
+                    ? 'يمكنك إنشاء حتى 3 ملفات شخصية فقط'
+                    : 'تعذر إنشاء الملف الشخصي';
+            }
+        } finally {
+            dom.createProfileBtn.disabled = false;
         }
     }
 
@@ -2325,12 +2624,14 @@
         try {
             dom.saveTransferBtn.disabled = true;
             const userId = requireFinancialUser();
+            const profileId = requireActiveProfileId();
             const transferDate = dom.transferDate.value || new Date().toISOString().split('T')[0];
 
             const { error } = await supabaseClient
                 .from('wallet_transfers')
                 .insert({
                     user_id: userId,
+                    profile_id: profileId,
                     from_wallet: fromWallet,
                     to_wallet: toWallet,
                     amount,
@@ -2471,7 +2772,8 @@
                 emergency_amount: parts.emergencyAmount,
             })
             .eq('id', record.id)
-            .eq('user_id', requireFinancialUser());
+            .eq('user_id', requireFinancialUser())
+            .eq('profile_id', requireActiveProfileId());
 
         if (error) throw error;
 
@@ -2535,7 +2837,8 @@
                 source_wallet: newParts[0]?.source_wallet || record.sourceWallet || 'expenses',
             })
             .eq('id', record.id)
-            .eq('user_id', requireFinancialUser());
+            .eq('user_id', requireFinancialUser())
+            .eq('profile_id', requireActiveProfileId());
 
         if (error) throw error;
 
@@ -2544,7 +2847,8 @@
                 .from('transaction_wallet_splits')
                 .delete()
                 .eq('transaction_id', record.id)
-                .eq('user_id', requireFinancialUser());
+                .eq('user_id', requireFinancialUser())
+                .eq('profile_id', requireActiveProfileId());
             if (deleteResult.error) throw deleteResult.error;
 
             const insertResult = await supabaseClient
@@ -2552,6 +2856,7 @@
                 .insert(newParts.map(part => ({
                     transaction_id: record.id,
                     user_id: requireFinancialUser(),
+                    profile_id: requireActiveProfileId(),
                     source_wallet: part.source_wallet,
                     amount: part.amount,
                 })));
@@ -2592,7 +2897,8 @@
                 transfer_date: date,
             })
             .eq('id', record.id)
-            .eq('user_id', requireFinancialUser());
+            .eq('user_id', requireFinancialUser())
+            .eq('profile_id', requireActiveProfileId());
 
         if (error) throw error;
         await saveWalletBalances(temporaryBalances);
@@ -2875,6 +3181,45 @@
             });
         }
 
+        if (dom.accountProfilesList) {
+            dom.accountProfilesList.addEventListener('click', (event) => {
+                const btn = event.target.closest('.profile-card');
+                if (!btn) return;
+                setActiveProfile(btn.dataset.profileId);
+            });
+        }
+
+        if (dom.addProfileBtn) {
+            dom.addProfileBtn.addEventListener('click', openProfileModal);
+        }
+
+        if (dom.closeProfileModal) {
+            dom.closeProfileModal.addEventListener('click', closeProfileModal);
+        }
+
+        if (dom.cancelProfileBtn) {
+            dom.cancelProfileBtn.addEventListener('click', closeProfileModal);
+        }
+
+        if (dom.profileModal) {
+            dom.profileModal.addEventListener('click', (event) => {
+                if (event.target === dom.profileModal) closeProfileModal();
+            });
+        }
+
+        if (dom.profileAvatarPicker) {
+            dom.profileAvatarPicker.addEventListener('click', (event) => {
+                const btn = event.target.closest('.avatar-choice');
+                if (!btn) return;
+                selectedProfileAvatar = btn.dataset.avatarKey || 'avatar_1';
+                updateAvatarPicker();
+            });
+        }
+
+        if (dom.createProfileBtn) {
+            dom.createProfileBtn.addEventListener('click', handleCreateProfile);
+        }
+
         if (dom.openBannerAdminBtn) {
             dom.openBannerAdminBtn.addEventListener('click', openBannerAdminModal);
         }
@@ -2930,10 +3275,11 @@
 
                 try {
                     const userId = requireFinancialUser();
+                    const profileId = requireActiveProfileId();
                     const [incomeDelete, expenseDelete, transferDelete] = await Promise.all([
-                        supabaseClient.from('incomes').delete().eq('user_id', userId),
-                        supabaseClient.from('transactions').delete().eq('user_id', userId),
-                        supabaseClient.from('wallet_transfers').delete().eq('user_id', userId),
+                        supabaseClient.from('incomes').delete().eq('user_id', userId).eq('profile_id', profileId),
+                        supabaseClient.from('transactions').delete().eq('user_id', userId).eq('profile_id', profileId),
+                        supabaseClient.from('wallet_transfers').delete().eq('user_id', userId).eq('profile_id', profileId),
                     ]);
 
                     if (incomeDelete.error) throw incomeDelete.error;
@@ -3129,11 +3475,13 @@
         try {
             dom.addExpenseBtn.disabled = true;
             const userId = requireFinancialUser();
+            const profileId = requireActiveProfileId();
 
             const { data: insertedTransaction, error } = await supabaseClient
                 .from('transactions')
                 .insert({
                     user_id: userId,
+                    profile_id: profileId,
                     amount,
                     category,
                     source_wallet: sourceWallet,
@@ -3150,6 +3498,7 @@
                 const splitPayload = walletParts.map((part) => ({
                     transaction_id: insertedTransaction.id,
                     user_id: userId,
+                    profile_id: profileId,
                     source_wallet: part.source_wallet,
                     amount: part.amount,
                 }));
@@ -3234,11 +3583,13 @@
         try {
             dom.addIncomeBtn.disabled = true;
             const userId = requireFinancialUser();
+            const profileId = requireActiveProfileId();
 
             const { error } = await supabaseClient
                 .from('incomes')
                 .insert({
                     user_id: userId,
+                    profile_id: profileId,
                     amount,
                     note: dom.incomeDesc.value.trim(),
                     income_date: incomeDate,
@@ -3322,7 +3673,8 @@
                     .from('incomes')
                     .delete()
                     .eq('id', id)
-                    .eq('user_id', requireFinancialUser());
+                    .eq('user_id', requireFinancialUser())
+                    .eq('profile_id', requireActiveProfileId());
 
                 if (error) throw error;
 
@@ -3338,7 +3690,8 @@
                     .from('transactions')
                     .delete()
                     .eq('id', id)
-                    .eq('user_id', requireFinancialUser());
+                    .eq('user_id', requireFinancialUser())
+                    .eq('profile_id', requireActiveProfileId());
 
                 if (error) throw error;
 
@@ -3358,7 +3711,8 @@
                     .from('wallet_transfers')
                     .delete()
                     .eq('id', id)
-                    .eq('user_id', requireFinancialUser());
+                    .eq('user_id', requireFinancialUser())
+                    .eq('profile_id', requireActiveProfileId());
 
                 if (error) throw error;
 
@@ -4195,7 +4549,7 @@
         if (!('serviceWorker' in navigator)) return;
 
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js?v=36', { scope: './' })
+            navigator.serviceWorker.register('./sw.js?v=38', { scope: './' })
                 .then((registration) => {
                     registration.update();
                 })
