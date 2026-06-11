@@ -2255,7 +2255,7 @@ button {
    ============================================ */
 .toast {
     position: fixed;
-    bottom: calc(var(--nav-height) + var(--safe-bottom) + var(--space-md));
+    bottom: calc(var(--safe-bottom) + 78px);
     left: 50%;
     transform: translateX(-50%) translateY(120%);
     z-index: 15000;
@@ -2263,8 +2263,8 @@ button {
     visibility: hidden;
     transition: transform var(--transition-slow), opacity var(--transition-normal), visibility var(--transition-normal);
     pointer-events: none;
-    width: calc(100% - var(--space-lg) * 2);
-    max-width: 450px;
+    width: auto;
+    max-width: min(420px, calc(100% - 32px));
 }
 
 .toast[hidden] {
@@ -2311,12 +2311,19 @@ button {
     gap: var(--space-sm);
     background: var(--accent-purple-dark);
     color: #fff;
-    padding: var(--space-md) var(--space-lg);
+    padding: 12px 16px;
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
     font-size: 0.85rem;
     font-weight: 600;
-    width: 100%;
+    width: max-content;
+    max-width: 100%;
+    min-height: 48px;
+}
+
+.toast-message {
+    line-height: 1.5;
+    max-width: 320px;
 }
 
 .toast-icon {

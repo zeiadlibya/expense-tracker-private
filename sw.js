@@ -1,10 +1,10 @@
-const CACHE_NAME = 'cashgo-static-v16';
+const CACHE_NAME = 'cashgo-static-v18';
 
 const STATIC_ASSETS = [
   './',
   './index.html',
-  './style.css?v=35',
-  './app.js?v=35',
+  './style.css?v=36',
+  './app.js?v=36',
   './site.webmanifest?v=8',
   './icon-192.png?v=8',
   './icon-512.png?v=8',
@@ -46,8 +46,7 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      caches.match('./index.html').then((cached) => {
-        const networkFetch = fetch(request)
+      fetch(request)
           .then((response) => {
             if (response && response.ok) {
               const copy = response.clone();
@@ -55,11 +54,7 @@ self.addEventListener('fetch', (event) => {
             }
             return response;
           })
-          .catch(() => {
-            return cached;
-          });
-        return cached || networkFetch;
-      })
+          .catch(() => caches.match('./index.html'))
     );
     return;
   }
