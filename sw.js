@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cashgo-static-v15';
+const CACHE_NAME = 'cashgo-static-v16';
 
 const STATIC_ASSETS = [
   './',
