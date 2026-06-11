@@ -2258,11 +2258,13 @@ button {
     bottom: calc(var(--nav-height) + var(--safe-bottom) + var(--space-md));
     left: 50%;
     transform: translateX(-50%) translateY(120%);
-    z-index: 1000;
+    z-index: 15000;
     opacity: 0;
     visibility: hidden;
     transition: transform var(--transition-slow), opacity var(--transition-normal), visibility var(--transition-normal);
     pointer-events: none;
+    width: calc(100% - var(--space-lg) * 2);
+    max-width: 450px;
 }
 
 .toast[hidden] {
@@ -2314,7 +2316,7 @@ button {
     box-shadow: var(--shadow-lg);
     font-size: 0.85rem;
     font-weight: 600;
-    white-space: nowrap;
+    width: 100%;
 }
 
 .toast-icon {

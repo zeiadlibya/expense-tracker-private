@@ -1828,7 +1828,9 @@
             }
         } catch (error) {
             console.error('Financial data load failed:', error);
-            openAuthModal(`تم تسجيل الدخول، لكن تعذر تحميل البيانات المالية: ${getReadableSupabaseError(error)}`, 'error');
+            if (dom.splash) dom.splash.classList.add('hidden');
+            if (dom.app) dom.app.classList.remove('hidden');
+            openAuthModal(`تم تسجيل الدخول، لكن تعذر تحميل البيانات المالية: ${getReadableSupabaseError(error)}`, 'error', { allowContinueDemo: true });
         }
     }
 
