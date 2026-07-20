@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>الشاهين للتوصيل — من بابك لأي باب في ليبيا</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;500;700;900&family=IBM+Plex+Sans+Arabic:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#201A14;
+  --bone:#FBF9F5;
+  --amber:#E8730C;
+  --amber-deep:#B4550A;
+  --sage:#9DBFA5;
+  --sea:#7FC4BD;
+  --ease:cubic-bezier(0.32,0.72,0,1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:auto}
+body{
+  font-family:'IBM Plex Sans Arabic',sans-serif;
+  background:var(--bone);
+  color:var(--ink);
+  overflow-x:hidden;
+  font-weight:300;
+}
+::selection{background:var(--amber);color:#fff}
+
+/* ---------- Loader ---------- */
+#loader{
+  position:fixed;inset:0;z-index:100;
+  background:var(--bone);
+  display:flex;align-items:center;justify-content:center;
+  transition:opacity .9s var(--ease), visibility .9s;
+}
+#loader.done{opacity:0;visibility:hidden}
+.loader-mark{
+  font-family:'Alexandria',sans-serif;font-weight:900;
+  font-size:clamp(3rem,9vw,6rem);letter-spacing:-.02em;
+  overflow:hidden;
+}
+.loader-mark span{
+  display:inline-block;
+  transform:translateY(110%);
+  animation:rise 1s var(--ease) forwards;
+}
+.loader-mark .dot{color:var(--amber)}
+@keyframes rise{to{transform:translateY(0)}}
+
+/* ---------- Fixed nav ---------- */
+nav{
+  position:fixed;top:1.4rem;right:50%;transform:translateX(50%);
+  z-index:60;
+  display:flex;align-items:center;gap:1.8rem;
+  background:rgba(251,249,245,.72);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid rgba(32,26,20,.07);
+  border-radius:999px;
+  padding:.55rem .6rem .55rem 1.5rem;
+  box-shadow:0 12px 40px -18px rgba(32,26,20,.18);
+}
+.nav-logo{font-family:'Alexandria',sans-serif;font-weight:900;font-size:1.15rem}
+.nav-logo em{color:var(--amber);font-style:normal}
+.nav-links{display:flex;gap:1.3rem;font-size:.8rem;font-weight:400}
+.nav-links a{color:var(--ink);text-decoration:none;opacity:.65;transition:opacity .4s var(--ease)}
+.nav-links a:hover{opacity:1}
+.nav-cta{
+  background:var(--ink);color:#fff;text-decoration:none;
+  font-size:.78rem;font-weight:500;
+  padding:.6rem 1.15rem;border-radius:999px;
+  display:flex;align-items:center;gap:.55rem;
+  transition:transform .5s var(--ease);
+}
+.nav-cta:active{transform:scale(.97)}
+.nav-cta .arr{
+  width:1.35rem;height:1.35rem;border-radius:50%;
+  background:rgba(255,255,255,.14);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.7rem;
+  transition:transform .5s var(--ease);
+}
+.nav-cta:hover .arr{transform:translate(-2px,-1px)}
+
+/* ---------- Route rail (signature) ---------- */
+#rail{
+  position:fixed;left:1.6rem;top:50%;transform:translateY(-50%);
+  z-index:55;display:flex;flex-direction:column;align-items:center;gap:0;
+  opacity:0;transition:opacity .8s var(--ease);
+}
+#rail.show{opacity:1}
+.rail-line{
+  width:2px;height:52vh;border-radius:2px;
+  background:repeating-linear-gradient(to bottom,rgba(32,26,20,.16) 0 6px,transparent 6px 12px);
+  position:relative;
+}
+.rail-fill{
+  position:absolute;top:0;left:0;width:2px;border-radius:2px;
+  background:var(--amber);height:0%;
+}
+.rail-marker{
+  position:absolute;left:50%;top:0%;
+  width:12px;height:12px;border-radius:50%;
+  background:var(--amber);
+  transform:translate(-50%,-50%);
+  box-shadow:0 0 0 5px rgba(232,115,12,.18);
+}
+.rail-stop{
+  position:absolute;left:50%;transform:translate(-50%,-50%);
+  display:flex;align-items:center;gap:.6rem;
+}
+.rail-stop i{
+  width:7px;height:7px;border-radius:50%;
+  background:rgba(32,26,20,.25);display:block;flex:none;
+  transition:background .5s var(--ease), transform .5s var(--ease);
+}
+.rail-stop span{
+  position:absolute;right:1.1rem;white-space:nowrap;
+  font-size:.66rem;font-weight:500;letter-spacing:.05em;
+  color:rgba(32,26,20,.4);
+  transition:color .5s var(--ease);
+}
+.rail-stop.on i{background:var(--amber);transform:scale(1.4)}
+.rail-stop.on span{color:var(--ink)}
+
+/* ---------- Hero ---------- */
+#hero{position:relative;height:100vh;height:100dvh;overflow:hidden}
+.hero-img{
+  position:absolute;inset:0;
+  background-size:cover;background-position:center 65%;
+  transform:scale(1.12);
+  transition:transform 2.4s var(--ease);
+  will-change:transform;
+}
+body.loaded .hero-img{transform:scale(1)}
+.hero-veil{position:absolute;inset:0;background:linear-gradient(to top,rgba(251,249,245,.9) 0%,rgba(251,249,245,0) 38%)}
+.hero-copy{
+  position:absolute;bottom:clamp(2rem,7vh,4.5rem);right:clamp(1.4rem,6vw,6rem);
+  max-width:34rem;
+}
+.hero-eyebrow{
+  display:inline-flex;align-items:center;gap:.5rem;
+  font-size:.68rem;font-weight:500;letter-spacing:.22em;
+  border:1px solid rgba(32,26,20,.14);border-radius:999px;
+  padding:.35rem .9rem;margin-bottom:1.2rem;
+  background:rgba(251,249,245,.6);backdrop-filter:blur(8px);
+}
+.hero-eyebrow b{color:var(--amber);font-weight:700}
+h1{
+  font-family:'Alexandria',sans-serif;font-weight:900;
+  font-size:clamp(2.4rem,6.2vw,4.6rem);
+  line-height:1.12;letter-spacing:-.015em;
+  margin-bottom:1.1rem;
+}
+h1 em{font-style:normal;color:var(--amber)}
+.hero-sub{font-size:clamp(.92rem,1.4vw,1.05rem);line-height:1.9;opacity:.75;max-width:27rem;margin-bottom:1.7rem}
+.btn-row{display:flex;gap:.8rem;flex-wrap:wrap}
+.btn{
+  display:inline-flex;align-items:center;gap:.7rem;
+  text-decoration:none;font-weight:500;font-size:.9rem;
+  padding:.85rem 1.5rem;border-radius:999px;
+  transition:transform .5s var(--ease), box-shadow .5s var(--ease);
+}
+.btn:active{transform:scale(.97)}
+.btn-solid{background:var(--amber);color:#fff;box-shadow:0 18px 40px -16px rgba(232,115,12,.55)}
+.btn-solid:hover{box-shadow:0 22px 50px -14px rgba(232,115,12,.65)}
+.btn-solid .arr{
+  width:1.7rem;height:1.7rem;border-radius:50%;
+  background:rgba(255,255,255,.18);
+  display:flex;align-items:center;justify-content:center;font-size:.75rem;
+  transition:transform .5s var(--ease);
+}
+.btn-solid:hover .arr{transform:translate(-3px,-2px) scale(1.06)}
+.btn-ghost{border:1px solid rgba(32,26,20,.18);color:var(--ink);background:rgba(251,249,245,.5);backdrop-filter:blur(8px)}
+.scroll-hint{
+  position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);
+  font-size:.66rem;letter-spacing:.28em;opacity:.5;
+  display:flex;flex-direction:column;align-items:center;gap:.6rem;
+}
+.scroll-hint::after{
+  content:"";width:1px;height:2.4rem;background:var(--ink);
+  animation:drip 2.2s var(--ease) infinite;transform-origin:top;
+}
+@keyframes drip{0%{transform:scaleY(0)}55%{transform:scaleY(1)}100%{transform:scaleY(1);opacity:0}}
+
+/* ---------- Journey intro strip ---------- */
+#route-intro{
+  padding:clamp(6rem,14vh,10rem) clamp(1.4rem,6vw,6rem);
+  max-width:72rem;margin-inline:auto;
+}
+.section-eyebrow{
+  display:inline-block;font-size:.66rem;font-weight:500;letter-spacing:.24em;
+  color:var(--amber-deep);
+  border:1px solid rgba(232,115,12,.35);border-radius:999px;
+  padding:.35rem .95rem;margin-bottom:1.4rem;
+}
+h2{
+  font-family:'Alexandria',sans-serif;font-weight:900;
+  font-size:clamp(1.9rem,4.4vw,3.3rem);
+  line-height:1.2;letter-spacing:-.01em;
+  max-width:38rem;
+}
+.route-cities{
+  display:flex;align-items:center;gap:1rem;flex-wrap:wrap;
+  margin-top:2.6rem;
+  font-family:'Alexandria',sans-serif;font-weight:700;
+  font-size:clamp(1rem,2.2vw,1.5rem);
+}
+.route-cities .hop{
+  color:var(--amber);font-weight:300;font-size:1.1em;
+}
+
+/* ---------- Scenes ---------- */
+.scene{position:relative;height:230vh}
+.scene-stage{
+  position:sticky;top:0;height:100vh;height:100dvh;
+  overflow:hidden;
+}
+.scene-img{
+  position:absolute;inset:-4%;
+  background-size:cover;background-position:center;
+  will-change:transform;
+}
+.scene-card{
+  position:absolute;bottom:clamp(1.4rem,6vh,3.5rem);right:clamp(1.2rem,5vw,4.5rem);
+  width:min(24rem,calc(100% - 2.4rem));
+  background:rgba(251,249,245,.6);
+  border:1px solid rgba(32,26,20,.08);
+  border-radius:1.6rem;
+  padding:.45rem;
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  box-shadow:0 30px 70px -30px rgba(32,26,20,.35);
+  will-change:transform,opacity;
+}
+.scene-card-core{
+  background:rgba(255,255,255,.92);
+  border-radius:1.2rem;
+  padding:1.5rem 1.6rem 1.6rem;
+  box-shadow:inset 0 1px 1px rgba(255,255,255,.9);
+}
+.scene-tag{
+  font-size:.62rem;font-weight:500;letter-spacing:.24em;
+  color:var(--amber-deep);margin-bottom:.55rem;display:block;
+}
+.scene-city{
+  font-family:'Alexandria',sans-serif;font-weight:900;
+  font-size:clamp(1.6rem,3vw,2.2rem);margin-bottom:.5rem;
+}
+.scene-note{font-size:.84rem;line-height:1.9;opacity:.72;margin-bottom:1.1rem}
+.scene-stat{
+  display:flex;align-items:baseline;gap:.55rem;
+  border-top:1px dashed rgba(32,26,20,.15);padding-top:1rem;
+}
+.scene-stat b{
+  font-family:'Alexandria',sans-serif;font-weight:900;
+  font-size:1.5rem;color:var(--amber);
+}
+.scene-stat span{font-size:.74rem;opacity:.65}
+
+/* ---------- Stats band ---------- */
+#stats{
+  background:var(--ink);color:var(--bone);
+  padding:clamp(6rem,16vh,10rem) clamp(1.4rem,6vw,6rem);
+}
+.stats-wrap{max-width:72rem;margin-inline:auto}
+#stats h2{color:var(--bone);margin-bottom:3.4rem}
+#stats h2 em{font-style:normal;color:var(--amber)}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+.stat-cell{
+  background:rgba(251,249,245,.05);
+  border:1px solid rgba(251,249,245,.1);
+  border-radius:1.6rem;padding:.45rem;
+}
+.stat-core{
+  border-radius:1.2rem;padding:2rem 1.8rem;
+  background:rgba(251,249,245,.03);
+  box-shadow:inset 0 1px 0 rgba(251,249,245,.07);
+}
+.stat-num{
+  font-family:'Alexandria',sans-serif;font-weight:900;
+  font-size:clamp(2.4rem,5vw,3.6rem);color:var(--amber);
+  line-height:1;margin-bottom:.7rem;
+}
+.stat-lbl{font-size:.82rem;opacity:.6;line-height:1.8}
+
+/* ---------- CTA ---------- */
+#cta{padding:clamp(7rem,18vh,12rem) clamp(1.4rem,6vw,6rem);text-align:center}
+#cta h2{margin-inline:auto;margin-bottom:1.2rem;max-width:44rem}
+#cta p{opacity:.7;max-width:30rem;margin:0 auto 2.2rem;line-height:1.9;font-size:.95rem}
+footer{
+  border-top:1px solid rgba(32,26,20,.08);
+  padding:2rem clamp(1.4rem,6vw,6rem);
+  display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;
+  font-size:.75rem;opacity:.6;
+}
+footer .f-logo{font-family:'Alexandria',sans-serif;font-weight:900;font-size:1rem;opacity:1}
+footer .f-logo em{color:var(--amber);font-style:normal}
+
+/* ---------- Reveal ---------- */
+.rv{opacity:0;transform:translateY(3.2rem);filter:blur(6px);transition:opacity 1s var(--ease),transform 1s var(--ease),filter 1s var(--ease)}
+.rv.in{opacity:1;transform:translateY(0);filter:blur(0)}
+.rv.d1{transition-delay:.08s}.rv.d2{transition-delay:.16s}.rv.d3{transition-delay:.24s}
+
+/* ---------- Mobile ---------- */
+@media(max-width:768px){
+  #rail{display:none}
+  .nav-links{display:none}
+  nav{padding:.5rem .55rem .5rem 1.1rem;gap:1rem}
+  .scene{height:190vh}
+  .hero-copy{right:1.4rem;left:1.4rem}
+  .stats-grid{grid-template-columns:1fr;gap:.8rem}
+  .scene-card{right:1.2rem;left:1.2rem;width:auto}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001s!important;transition-duration:.001s!important}
+  .rv{opacity:1;transform:none;filter:none}
+}
+</style>
+</head>
+<body>
+
+<div id="loader"><div class="loader-mark"><span>الشاهين<i class="dot">.</i></span></div></div>
+
+<nav>
+  <div class="nav-logo">الشاهين<em>.</em></div>
+  <div class="nav-links">
+    <a href="#route-intro">خط السير</a>
+    <a href="#stats">أرقامنا</a>
+    <a href="#cta">تواصل</a>
+  </div>
+  <a class="nav-cta" href="#cta">اشحن توا <span class="arr">←</span></a>
+</nav>
+
+<div id="rail" aria-hidden="true">
+  <div class="rail-line">
+    <div class="rail-fill"></div>
+    <div class="rail-marker"></div>
+    <div class="rail-stop" style="top:8%"  data-stop="0"><i></i><span>طرابلس</span></div>
+    <div class="rail-stop" style="top:50%" data-stop="1"><i></i><span>مصراتة</span></div>
+    <div class="rail-stop" style="top:92%" data-stop="2"><i></i><span>بنغازي</span></div>
+  </div>
+</div>
+
+<header id="hero">
+  <div class="hero-img" style="background-image:url('assets/hub.jpg')"></div>
+  <div class="hero-veil"></div>
+  <div class="hero-copy">
+    <div class="hero-eyebrow"><b>●</b> شركة توصيل ليبية</div>
+    <h1>طردك يوصل.<br>وين ما <em>كان.</em></h1>
+    <p class="hero-sub">شبكة توصيل تربط طرابلس ومصراتة وبنغازي — استلام من بابك، تتبّع لحظة بلحظة، وتسليم في نفس اليوم داخل المدينة.</p>
+    <div class="btn-row">
+      <a class="btn btn-solid" href="#cta">اطلب مندوب <span class="arr">←</span></a>
+      <a class="btn btn-ghost" href="#route-intro">شوف خط السير</a>
+    </div>
+  </div>
+  <div class="scroll-hint">اسحب لتحت</div>
+</header>
+
+<section id="route-intro">
+  <span class="section-eyebrow rv">خط السير</span>
+  <h2 class="rv d1">رحلة الطرد عندنا تمشي على أهم ثلاث مدن في ليبيا.</h2>
+  <div class="route-cities rv d2">
+    <span>طرابلس</span><span class="hop">←</span>
+    <span>مصراتة</span><span class="hop">←</span>
+    <span>بنغازي</span>
+  </div>
+</section>
+
+<section class="scene" data-scene="0">
+  <div class="scene-stage" data-ph="طرابلس">
+    <div class="scene-img" style="background-image:url('assets/tripoli.jpg')"></div>
+    <div class="scene-card">
+      <div class="scene-card-core">
+        <span class="scene-tag">المحطة الأولى</span>
+        <div class="scene-city">طرابلس</div>
+        <p class="scene-note">من ساحة الشهداء وبرج الساعة، مناديبنا يغطّو كل أحياء العاصمة — استلام وتسليم من الباب للباب.</p>
+        <div class="scene-stat"><b>نفس اليوم</b><span>توصيل داخل طرابلس الكبرى</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="scene" data-scene="1">
+  <div class="scene-stage" data-ph="مصراتة">
+    <div class="scene-img" style="background-image:url('assets/misrata.jpg')"></div>
+    <div class="scene-card">
+      <div class="scene-card-core">
+        <span class="scene-tag">المحطة الثانية</span>
+        <div class="scene-city">مصراتة</div>
+        <p class="scene-note">بوابة التجارة الليبية. نستلمو بضاعتك من الميناء والمنطقة الحرة ونوزّعوها على كامل الشبكة.</p>
+        <div class="scene-stat"><b>24 ساعة</b><span>من الميناء إلى أي مدينة</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="scene" data-scene="2">
+  <div class="scene-stage" data-ph="بنغازي">
+    <div class="scene-img" style="background-image:url('assets/benghazi.jpg')"></div>
+    <div class="scene-card">
+      <div class="scene-card-core">
+        <span class="scene-tag">المحطة الثالثة</span>
+        <div class="scene-city">بنغازي</div>
+        <p class="scene-note">من منارة سيدي اخريبيش للواجهة البحرية — فرعنا في بنغازي يخدم الشرق كامل بنفس السرعة.</p>
+        <div class="scene-stat"><b>100%</b><span>تغطية أحياء المدينة</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="stats">
+  <div class="stats-wrap">
+    <h2 class="rv">أرقام تمشي <em>قدّام.</em></h2>
+    <div class="stats-grid">
+      <div class="stat-cell rv d1"><div class="stat-core"><div class="stat-num">3</div><div class="stat-lbl">مدن رئيسية مرتبطة بخط يومي مباشر</div></div></div>
+      <div class="stat-cell rv d2"><div class="stat-core"><div class="stat-num">+120</div><div class="stat-lbl">مندوب توصيل على الأرض في كامل الشبكة</div></div></div>
+      <div class="stat-cell rv d3"><div class="stat-core"><div class="stat-num">15K</div><div class="stat-lbl">طرد شهرياً يوصل في وقته وبحالته</div></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="cta">
+  <span class="section-eyebrow rv">خلينا نبداو</span>
+  <h2 class="rv d1">جاهز تشحن أول طرد؟</h2>
+  <p class="rv d2">ابعثلنا على واتساب بتفاصيل الشحنة، ومندوبنا يكون عندك في نفس اليوم.</p>
+  <div class="btn-row rv d3" style="justify-content:center">
+    <a class="btn btn-solid" href="#">تواصل واتساب <span class="arr">←</span></a>
+    <a class="btn btn-ghost" href="#">091-000-0000</a>
+  </div>
+</section>
+
+<footer>
+  <span class="f-logo">الشاهين<em>.</em></span>
+  <span>نموذج تجريبي — تصميم وتنفيذ Rumuz</span>
+</footer>
+
+<script>
+(function(){
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* Loader */
+  window.addEventListener('load', function(){
+    setTimeout(function(){
+      document.getElementById('loader').classList.add('done');
+      document.body.classList.add('loaded');
+    }, 900);
+  });
+  setTimeout(function(){
+    document.getElementById('loader').classList.add('done');
+    document.body.classList.add('loaded');
+  }, 3200);
+
+  /* Reveals */
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+    });
+  },{threshold:0.18});
+  document.querySelectorAll('.rv').forEach(function(el){ io.observe(el); });
+
+  if(reduced) return;
+
+  /* Scene choreography + route rail */
+  var scenes = Array.prototype.slice.call(document.querySelectorAll('.scene'));
+  var rail = document.getElementById('rail');
+  var railFill = document.querySelector('.rail-fill');
+  var railMarker = document.querySelector('.rail-marker');
+  var stops = document.querySelectorAll('.rail-stop');
+  var ticking = false;
+
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+  function frame(){
+    ticking = false;
+    var vh = window.innerHeight;
+    var journeyTop = null, journeyBottom = null;
+
+    scenes.forEach(function(sc, i){
+      var r = sc.getBoundingClientRect();
+      if(i===0) journeyTop = r.top + window.scrollY;
+      if(i===scenes.length-1) journeyBottom = r.bottom + window.scrollY;
+
+      var total = r.height - vh;
+      var p = clamp(-r.top / total, 0, 1); /* 0..1 progress through scene */
+
+      var img = sc.querySelector('.scene-img');
+      var card = sc.querySelector('.scene-card');
+
+      /* pseudo camera: dolly-in + slight pan, transform-only */
+      var scale = 1.14 - p * 0.14;
+      var panX = (i % 2 === 0 ? 1 : -1) * (1 - p) * 3.5; /* % */
+      var panY = (1 - p) * 2.5;
+      img.style.transform = 'scale(' + scale.toFixed(4) + ') translate(' + panX.toFixed(2) + '%,' + panY.toFixed(2) + '%)';
+
+      /* card: rises in the first third, sits, exits softly at the end */
+      var enter = clamp(p / 0.28, 0, 1);
+      var exit = clamp((p - 0.85) / 0.15, 0, 1);
+      card.style.opacity = (enter * (1 - exit)).toFixed(3);
+      card.style.transform = 'translateY(' + ((1 - enter) * 46 + exit * -20).toFixed(1) + 'px)';
+    });
+
+    /* rail progress across the whole journey */
+    if(journeyTop !== null){
+      var span = journeyBottom - journeyTop - vh;
+      var jp = clamp((window.scrollY - journeyTop) / span, 0, 1);
+      var inJourney = window.scrollY > journeyTop - vh * 0.6 && window.scrollY < journeyBottom - vh * 0.4;
+      rail.classList.toggle('show', inJourney);
+      railFill.style.height = (jp * 100).toFixed(2) + '%';
+      railMarker.style.top = (jp * 100).toFixed(2) + '%';
+      stops.forEach(function(st, i){
+        st.classList.toggle('on', jp >= [0.04, 0.42, 0.84][i]);
+      });
+    }
+  }
+
+  window.addEventListener('scroll', function(){
+    if(!ticking){ ticking = true; requestAnimationFrame(frame); }
+  }, {passive:true});
+  window.addEventListener('resize', frame);
+  frame();
+})();
+</script>
+</body>
+</html>
